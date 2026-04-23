@@ -57,7 +57,19 @@ public class StaffMainGui extends SimpleGui {
             setSlot(8, new GuiElementBuilder(Items.SKULL_BANNER_PATTERN).setName(Component.literal("§c§lKill")).addLoreLine(Component.literal("§7Matar a un jugador.")).setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.KILL, this).open()).build());
         else setSlot(8, lockedSlot("Kill", "staffmod.kill"));
 
-        // FASE 3: Botón de Tickets
+        boolean isScToggled = DataStore.isStaffChatToggled(staff.getUUID());
+        setSlot(14, new GuiElementBuilder(isScToggled ? Items.YELLOW_DYE : Items.LIGHT_GRAY_DYE)
+            .setName(Component.literal(isScToggled ? "§e§lStaff Chat: FIJO" : "§7§lStaff Chat: NORMAL"))
+            .addLoreLine(Component.literal("§7Click para cambiar."))
+            .addLoreLine(Component.literal("§7Si está FIJO, todo lo que escribas"))
+            .addLoreLine(Component.literal("§7en el chat irá directo al canal privado."))
+            .setCallback((idx, type, clickAction, gui) -> {
+                DataStore.toggleStaffChat(staff.getUUID());
+                this.close();
+                new StaffMainGui(staff).open();
+            })
+            .build());
+
         setSlot(15, new GuiElementBuilder(Items.MAP)
             .setName(Component.literal("§e§lTickets de Jugadores"))
             .addLoreLine(Component.literal("§7Revisa y atiende los reportes."))
@@ -65,7 +77,6 @@ public class StaffMainGui extends SimpleGui {
             .setCallback((idx, type, action, gui) -> new TicketGui(staff, this).open())
             .build());
 
-        // FASE 2: Botón de Auditoría
         setSlot(16, new GuiElementBuilder(Items.WRITTEN_BOOK)
             .setName(Component.literal("§6§lAuditoría y Estadísticas"))
             .addLoreLine(Component.literal("§7Ver el historial de acciones"))
@@ -73,7 +84,6 @@ public class StaffMainGui extends SimpleGui {
             .setCallback((idx, type, action, gui) -> new StaffStatsGui(staff, this).open())
             .build());
 
-        // FASE 1: Botón de Modo Staff
         boolean isDuty = DataStore.isOnDuty(staff.getUUID());
         setSlot(17, new GuiElementBuilder(isDuty ? Items.LIME_DYE : Items.GRAY_DYE)
             .setName(Component.literal(isDuty ? "§a§lModo Staff: ACTIVO" : "§7§lModo Staff: INACTIVO"))
