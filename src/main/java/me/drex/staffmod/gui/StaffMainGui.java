@@ -2,22 +2,20 @@ package me.drex.staffmod.gui;
 
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
+import me.drex.staffmod.config.DataStore;
 import me.drex.staffmod.util.PermissionUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Items;
 
-/**
- * Panel principal de staff — 9 slots (barra de herramientas).
- * Cada botón abre el selector de jugadores para esa acción.
- */
 public class StaffMainGui extends SimpleGui {
 
     private final ServerPlayer staff;
 
     public StaffMainGui(ServerPlayer staff) {
-        super(MenuType.GENERIC_9x1, staff, false);
+        // FASE 1: Aumentado a 9x2
+        super(MenuType.GENERIC_9x2, staff, false);
         this.staff = staff;
         setTitle(Component.literal("§8⚔ §6Panel de Staff §8⚔"));
         build();
@@ -106,6 +104,20 @@ public class StaffMainGui extends SimpleGui {
                 .setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.KILL, this).open())
                 .build());
         else setSlot(8, lockedSlot("Kill", "staffmod.kill"));
+
+        // FASE 1: Botón de Modo Staff
+        boolean isDuty = DataStore.isOnDuty(staff.getUUID());
+        setSlot(17, new GuiElementBuilder(isDuty ? Items.LIME_DYE : Items.GRAY_DYE)
+            .setName(Component.literal(isDuty ? "§a§lModo Staff: ACTIVO" : "§7§lModo Staff: INACTIVO"))
+            .addLoreLine(Component.literal("§7Click para cambiar estado."))
+            .addLoreLine(Component.literal("§7Si estás inactivo, no recibirás"))
+            .addLoreLine(Component.literal("§7alertas de castigos en el chat."))
+            .setCallback((idx, type, clickAction, gui) -> {
+                DataStore.toggleDuty(staff.getUUID());
+                this.close();
+                new StaffMainGui(staff).open();
+            })
+            .build());
     }
 
     private eu.pb4.sgui.api.elements.GuiElement lockedSlot(String name, String perm) {
