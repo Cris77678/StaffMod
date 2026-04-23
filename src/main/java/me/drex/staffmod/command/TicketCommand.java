@@ -17,8 +17,17 @@ public class TicketCommand {
             .then(Commands.argument("mensaje", StringArgumentType.greedyString())
                 .executes(ctx -> {
                     ServerPlayer player = ctx.getSource().getPlayerOrException();
-                    String message = StringArgumentType.getString(ctx, "mensaje");
+                    
+                    // FIX BUG 2: Prevenir SPAM comprobando si ya tiene un ticket activo
+                    boolean hasOpenTicket = DataStore.getAllTickets().stream()
+                        .anyMatch(t -> t.creatorUuid.equals(player.getUUID()) && t.status.equals("ABIERTO"));
+                    
+                    if (hasOpenTicket) {
+                        player.sendSystemMessage(Component.literal("§c[Tickets] Ya tienes un ticket abierto. Por favor espera a que un staff lo atienda."));
+                        return 1;
+                    }
 
+                    String message = StringArgumentType.getString(ctx, "mensaje");
                     TicketEntry ticket = DataStore.createTicket(player.getUUID(), player.getName().getString(), message);
                     
                     player.sendSystemMessage(Component.literal("§a[Tickets] Tu ticket (#" + ticket.id + ") ha sido enviado al staff."));
