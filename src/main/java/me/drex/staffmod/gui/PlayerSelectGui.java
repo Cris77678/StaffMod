@@ -38,7 +38,11 @@ public class PlayerSelectGui extends SimpleGui {
 
     private void build() {
         List<ServerPlayer> online = staff.getServer().getPlayerList().getPlayers();
-        for (int i = 0; i < online.size() && i < 54; i++) {
+        
+        // FIX BUG 4: Restar 1 al getSize() para no pisar la posición de la flecha de Volver.
+        int slotLimit = Math.min(online.size(), getSize() - 1);
+        
+        for (int i = 0; i < slotLimit; i++) {
             ServerPlayer target = online.get(i);
             if (target.getUUID().equals(staff.getUUID())) continue;
 
@@ -60,7 +64,6 @@ public class PlayerSelectGui extends SimpleGui {
                     return;
                 }
 
-                // FASE 1: Acciones Rápidas con Shift
                 if (type.isShift) {
                     switch (action) {
                         case MUTE -> { ActionExecutor.mute(staff, finalTarget, "5m", "Mute Rápido (5m)"); parent.open(); return; }
@@ -109,7 +112,6 @@ public class PlayerSelectGui extends SimpleGui {
         b.addLoreLine(Component.literal(""));
         b.addLoreLine(Component.literal("§eClick normal: §f" + action.name()));
         
-        // FASE 1: Lore descriptivo para Shift
         if (action == StaffAction.MUTE || action == StaffAction.BAN || action == StaffAction.WARN) {
             b.addLoreLine(Component.literal("§bShift + Click: §fCastigo rápido"));
         } else if (action == StaffAction.FREEZE) {
