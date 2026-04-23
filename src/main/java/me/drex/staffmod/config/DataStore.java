@@ -20,22 +20,32 @@ public class DataStore {
     private static final Path PLAYERS_FILE = DATA_DIR.resolve("players.json");
     private static final Path JAILS_FILE   = DATA_DIR.resolve("jails.json");
     private static final Path STAFF_STATS_FILE = DATA_DIR.resolve("staff_stats.json");
-    private static final Path TICKETS_FILE = DATA_DIR.resolve("tickets.json"); // FASE 3
+    private static final Path TICKETS_FILE = DATA_DIR.resolve("tickets.json");
 
     private static final Map<UUID, PlayerData> players = new HashMap<>();
     private static final Map<String, JailZone> jails   = new LinkedHashMap<>();
     private static final Map<UUID, StaffProfile> staffProfiles = new HashMap<>();
-    private static final Map<Integer, TicketEntry> tickets = new LinkedHashMap<>(); // FASE 3
+    private static final Map<Integer, TicketEntry> tickets = new LinkedHashMap<>();
     
     private static final Set<UUID> onDuty = new HashSet<>();
+    private static final Set<UUID> staffChatToggled = new HashSet<>();
+
     private static int tickCounter = 0;
-    private static int nextTicketId = 1; // FASE 3
+    private static int nextTicketId = 1;
+    private static int announceCounter = 0;
 
     public static boolean isOnDuty(UUID uuid) { return onDuty.contains(uuid); }
 
     public static void toggleDuty(UUID uuid) {
         if (onDuty.contains(uuid)) onDuty.remove(uuid);
         else onDuty.add(uuid);
+    }
+
+    public static boolean isStaffChatToggled(UUID uuid) { return staffChatToggled.contains(uuid); }
+
+    public static void toggleStaffChat(UUID uuid) {
+        if (staffChatToggled.contains(uuid)) staffChatToggled.remove(uuid);
+        else staffChatToggled.add(uuid);
     }
 
     public static PlayerData getOrCreate(UUID uuid, String name) {
@@ -66,7 +76,6 @@ public class DataStore {
         return staffProfiles.values();
     }
 
-    // FASE 3: Métodos de Tickets
     public static TicketEntry createTicket(UUID creatorUuid, String creatorName, String message) {
         TicketEntry t = new TicketEntry(nextTicketId++, creatorUuid, creatorName, message);
         tickets.put(t.id, t);
@@ -81,6 +90,15 @@ public class DataStore {
     public static void removeTicket(int id) {
         tickets.remove(id);
         save();
+    }
+
+    public static void tickAnnouncements(MinecraftServer server) {
+        if (++announceCounter >= 12000) {
+            announceCounter = 0;
+            for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+                p.sendSystemMessage(Component.literal("§8[§bPokeLand§8] §f¿Tienes algún problema, duda o reporte? Usa el comando §e/ticket <mensaje> §fpara contactar directamente a nuestro staff."));
+            }
+        }
     }
 
     public static void tickExpirations(MinecraftServer server) {
@@ -141,7 +159,7 @@ public class DataStore {
             loadPlayers();
             loadJails();
             loadStaffStats();
-            loadTickets(); // FASE 3
+            loadTickets();
         } catch (IOException e) {
             StaffMod.LOGGER.error("[StaffMod] Error creando directorio de datos", e);
         }
@@ -250,7 +268,7 @@ public class DataStore {
             savePlayers();
             saveJails();
             saveStaffStats();
-            saveTickets(); // FASE 3
+            saveTickets();
         } catch (IOException e) {
             StaffMod.LOGGER.error("[StaffMod] Error guardando datos", e);
         }
