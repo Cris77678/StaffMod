@@ -105,9 +105,10 @@ public class DataStore {
         if (++tickCounter < 20) return;
         tickCounter = 0;
         long now = System.currentTimeMillis();
-        boolean needsSaving = false; // FIX: Variable para comprobar si hay cambios
+        boolean needsSaving = false;
         
-        for (PlayerData pd : players.values()) {
+        // FIX BUG 1: Iterar sobre una copia para evitar ConcurrentModificationException
+        for (PlayerData pd : new ArrayList<>(players.values())) {
             if (pd.muted && pd.muteExpiry != -1 && now >= pd.muteExpiry) {
                 pd.muted = false;
                 needsSaving = true;
@@ -132,6 +133,11 @@ public class DataStore {
                 needsSaving = true;
             }
         }
+        
+        if (needsSaving) {
+            save();
+        }
+    }
         
         // FIX BUG 3: Guardar persistencia de inmediato si un castigo se levantó
         if (needsSaving) {
