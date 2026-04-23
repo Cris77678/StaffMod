@@ -105,14 +105,18 @@ public class DataStore {
         if (++tickCounter < 20) return;
         tickCounter = 0;
         long now = System.currentTimeMillis();
+        boolean needsSaving = false; // FIX: Variable para comprobar si hay cambios
+        
         for (PlayerData pd : players.values()) {
             if (pd.muted && pd.muteExpiry != -1 && now >= pd.muteExpiry) {
                 pd.muted = false;
+                needsSaving = true;
                 ServerPlayer sp = server.getPlayerList().getPlayer(pd.uuid);
                 if (sp != null) sp.sendSystemMessage(Component.literal("§a[Staff] Tu mute ha expirado."));
             }
             if (pd.jailed && pd.jailExpiry != -1 && now >= pd.jailExpiry) {
                 pd.jailed = false;
+                needsSaving = true;
                 ServerPlayer sp = server.getPlayerList().getPlayer(pd.uuid);
                 if (sp != null) {
                     sp.sendSystemMessage(Component.literal("§a[Staff] Has salido de la cárcel."));
@@ -125,7 +129,13 @@ public class DataStore {
             }
             if (pd.banned && pd.banExpiry != -1 && now >= pd.banExpiry) {
                 pd.banned = false;
+                needsSaving = true;
             }
+        }
+        
+        // FIX BUG 3: Guardar persistencia de inmediato si un castigo se levantó
+        if (needsSaving) {
+            save();
         }
     }
 
