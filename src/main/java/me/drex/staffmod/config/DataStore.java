@@ -20,14 +20,22 @@ public class DataStore {
     private static final Path PLAYERS_FILE = DATA_DIR.resolve("players.json");
     private static final Path JAILS_FILE   = DATA_DIR.resolve("jails.json");
 
-    // Datos en memoria
     private static final Map<UUID, PlayerData> players = new HashMap<>();
     private static final Map<String, JailZone> jails   = new LinkedHashMap<>();
+    
+    // FASE 1: Staff en servicio (temporal, no se guarda en JSON)
+    private static final Set<UUID> onDuty = new HashSet<>();
 
-    // Tick counter para no comprobar expiraciones cada tick (cada 20 ticks = 1 segundo)
     private static int tickCounter = 0;
 
-    // ── Acceso ───────────────────────────────────────────────────────────────
+    public static boolean isOnDuty(UUID uuid) {
+        return onDuty.contains(uuid);
+    }
+
+    public static void toggleDuty(UUID uuid) {
+        if (onDuty.contains(uuid)) onDuty.remove(uuid);
+        else onDuty.add(uuid);
+    }
 
     public static PlayerData getOrCreate(UUID uuid, String name) {
         return players.computeIfAbsent(uuid, k -> new PlayerData(uuid, name));
@@ -49,8 +57,6 @@ public class DataStore {
         return removed;
     }
 
-    // ── Tick: expiraciones ───────────────────────────────────────────────────
-
     public static void tickExpirations(MinecraftServer server) {
         if (++tickCounter < 20) return;
         tickCounter = 0;
@@ -66,7 +72,6 @@ public class DataStore {
                 ServerPlayer sp = server.getPlayerList().getPlayer(pd.uuid);
                 if (sp != null) {
                     sp.sendSystemMessage(Component.literal("§a[Staff] Has salido de la cárcel."));
-                    // Teleportar al spawn
                     sp.teleportTo(server.overworld(),
                         server.overworld().getSharedSpawnPos().getX(),
                         server.overworld().getSharedSpawnPos().getY(),
@@ -79,8 +84,6 @@ public class DataStore {
             }
         }
     }
-
-    // ── Al conectar ──────────────────────────────────────────────────────────
 
     public static void applyOnJoin(ServerPlayer player) {
         PlayerData pd = getOrCreate(player.getUUID(), player.getName().getString());
@@ -105,8 +108,6 @@ public class DataStore {
                 "§c[Staff] Sigues en la cárcel. Expira: §e" + PlayerData.formatExpiry(pd.jailExpiry)));
         }
     }
-
-    // ── Persistencia ─────────────────────────────────────────────────────────
 
     public static void load() {
         try {
@@ -222,7 +223,6 @@ public class DataStore {
         try (Writer w = new FileWriter(JAILS_FILE.toFile())) { GSON.toJson(arr, w); }
     }
 
-    // ── Helpers JSON ─────────────────────────────────────────────────────────
     private static boolean getB(JsonObject o, String k) { return o.has(k) && o.get(k).getAsBoolean(); }
     private static long    getL(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsLong()    : -1L; }
     private static String  getS(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsString()  : ""; }
