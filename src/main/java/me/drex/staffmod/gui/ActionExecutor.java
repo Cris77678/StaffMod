@@ -13,7 +13,6 @@ import java.time.format.DateTimeFormatter;
 
 public class ActionExecutor {
 
-    // FASE 2: Función interna para registrar historial de staff
     private static void logHistory(ServerPlayer staff, String actionType, ServerPlayer target, String detail) {
         StaffProfile sp = DataStore.getStaffProfile(staff.getUUID(), staff.getName().getString());
         switch (actionType) {
@@ -194,6 +193,15 @@ public class ActionExecutor {
             return true;
         }
         return false;
+    }
+
+    public static void sendStaffChatMessage(ServerPlayer sender, String message) {
+        String format = "§8[§cStaffChat§8] §f" + sender.getName().getString() + "§7: §e" + message;
+        for (ServerPlayer p : sender.getServer().getPlayerList().getPlayers()) {
+            if (PermissionUtil.has(p, "staffmod.use")) {
+                p.sendSystemMessage(Component.literal(format));
+            }
+        }
     }
 
     private static void broadcast(ServerPlayer staff, String message) {
