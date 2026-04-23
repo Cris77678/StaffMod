@@ -12,10 +12,6 @@ import net.minecraft.world.item.Items;
 
 import java.util.List;
 
-/**
- * GUI con un cristal por cada jugador online.
- * Los admins (OP nivel 4) aparecen con cristal rojo y no se puede actuar sobre ellos.
- */
 public class PlayerSelectGui extends SimpleGui {
 
     private final ServerPlayer staff;
@@ -44,7 +40,7 @@ public class PlayerSelectGui extends SimpleGui {
         List<ServerPlayer> online = staff.getServer().getPlayerList().getPlayers();
         for (int i = 0; i < online.size() && i < 54; i++) {
             ServerPlayer target = online.get(i);
-            if (target.getUUID().equals(staff.getUUID())) continue; // no actuar sobre sí mismo
+            if (target.getUUID().equals(staff.getUUID())) continue;
 
             boolean isProtected = PermissionUtil.isProtected(target);
             PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
@@ -52,9 +48,7 @@ public class PlayerSelectGui extends SimpleGui {
             GuiElementBuilder builder;
             if (isProtected) {
                 builder = new GuiElementBuilder(Items.RED_STAINED_GLASS_PANE)
-                    .setName(Component.literal("§c" + target.getName().getString() + " §7[Protegido]"))
-                    .addLoreLine(Component.literal("§7Este jugador tiene OP y no puede"))
-                    .addLoreLine(Component.literal("§7ser afectado por acciones de staff."));
+                    .setName(Component.literal("§c" + target.getName().getString() + " §7[Protegido]"));
             } else {
                 builder = buildTargetSlot(target, pd);
             }
@@ -65,13 +59,23 @@ public class PlayerSelectGui extends SimpleGui {
                     staff.sendSystemMessage(Component.literal("§c[Staff] No puedes realizar esta acción sobre un administrador."));
                     return;
                 }
+
+                // FASE 1: Acciones Rápidas con Shift
+                if (type.isShift) {
+                    switch (action) {
+                        case MUTE -> { ActionExecutor.mute(staff, finalTarget, "5m", "Mute Rápido (5m)"); parent.open(); return; }
+                        case BAN -> { ActionExecutor.ban(staff, finalTarget, "1d", "Ban Rápido (1d)"); parent.open(); return; }
+                        case WARN -> { ActionExecutor.warn(staff, finalTarget, "Comportamiento inadecuado"); return; }
+                        case FREEZE -> { ActionExecutor.freeze(staff, finalTarget); return; }
+                        default -> {}
+                    }
+                }
                 handleAction(finalTarget);
             });
 
             setSlot(i, builder.build());
         }
 
-        // Botón volver
         int backSlot = getSize() - 1;
         setSlot(backSlot, new GuiElementBuilder(Items.ARROW)
             .setName(Component.literal("§7← Volver"))
@@ -85,7 +89,6 @@ public class PlayerSelectGui extends SimpleGui {
         boolean frozen = pd.frozen;
         boolean banned = pd.isBanActive();
 
-        // Color del cristal según estado
         var item = muted ? Items.YELLOW_STAINED_GLASS_PANE
                  : jailed ? Items.ORANGE_STAINED_GLASS_PANE
                  : frozen ? Items.LIGHT_BLUE_STAINED_GLASS_PANE
@@ -103,11 +106,15 @@ public class PlayerSelectGui extends SimpleGui {
             + (banned ? "§cBaneado " : "")
             + ((!muted && !jailed && !frozen && !banned) ? "§aNormal" : "")));
 
-        if (!pd.warns.isEmpty())
-            b.addLoreLine(Component.literal("§7Warns: §c" + pd.warns.size()));
-
         b.addLoreLine(Component.literal(""));
-        b.addLoreLine(Component.literal("§eClick para: §f" + action.name()));
+        b.addLoreLine(Component.literal("§eClick normal: §f" + action.name()));
+        
+        // FASE 1: Lore descriptivo para Shift
+        if (action == StaffAction.MUTE || action == StaffAction.BAN || action == StaffAction.WARN) {
+            b.addLoreLine(Component.literal("§bShift + Click: §fCastigo rápido"));
+        } else if (action == StaffAction.FREEZE) {
+            b.addLoreLine(Component.literal("§bShift + Click: §fCongelar rápido"));
+        }
 
         return b;
     }
@@ -118,7 +125,6 @@ public class PlayerSelectGui extends SimpleGui {
             case FREEZE    -> ActionExecutor.freeze(staff, target);
             case TELEPORT  -> ActionExecutor.teleport(staff, target);
             case KILL      -> ActionExecutor.kill(staff, target);
-            // Acciones que necesitan input (duración/razón) → abrir sub-GUI
             case MUTE      -> new DurationReasonGui(staff, target, StaffAction.MUTE,  this).open();
             case UNMUTE    -> { ActionExecutor.unmute(staff, target); parent.open(); }
             case JAIL      -> new JailSelectGui(staff, target, this).open();
