@@ -8,10 +8,6 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-/**
- * Muestra el inventario completo del target (36 slots + armadura + offhand).
- * Con staffmod.spy.interact permite mover/quitar items.
- */
 public class SpyGui extends SimpleGui {
 
     private final ServerPlayer staff;
@@ -35,18 +31,25 @@ public class SpyGui extends SimpleGui {
         for (int i = 0; i < 36; i++) {
             final int slot = i;
             ItemStack item = inv.getItem(i);
+            
             if (item.isEmpty()) {
                 setSlot(i, new GuiElementBuilder(Items.AIR).build());
             } else {
                 var builder = GuiElementBuilder.from(item.copy())
                     .addLoreLine(Component.literal("§8Slot inventario: " + i));
+                    
                 if (canInteract) {
                     builder.setCallback((idx, type, action, gui) -> {
-                        // Intercambiar item entre staff y target
-                        ItemStack staffHand = staff.getMainHandItem().copy();
+                        // FIX: Interactuar con el ratón (cursor) y no con la mano en el mundo
+                        ItemStack cursorItem = staff.containerMenu.getCarried();
                         ItemStack targetSlotItem = inv.getItem(slot).copy();
-                        inv.setItem(slot, staffHand);
-                        staff.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, targetSlotItem);
+                        
+                        inv.setItem(slot, cursorItem);
+                        staff.containerMenu.setCarried(targetSlotItem);
+                        
+                        // Refrescar GUI para evitar glitches visuales
+                        this.close();
+                        new SpyGui(staff, target).open();
                     });
                 }
                 setSlot(i, builder.build());
@@ -56,21 +59,45 @@ public class SpyGui extends SimpleGui {
         // Slots 36-39 → armadura (casco, pecho, pantalón, botas)
         String[] armorNames = {"Botas", "Pantalón", "Pechera", "Casco"};
         for (int i = 0; i < 4; i++) {
+            final int armorSlot = i;
             ItemStack armor = inv.armor.get(i);
             int guiSlot = 36 + i;
+            
             if (!armor.isEmpty()) {
-                setSlot(guiSlot, GuiElementBuilder.from(armor.copy())
-                    .addLoreLine(Component.literal("§8Armadura: " + armorNames[i]))
-                    .build());
+                var builder = GuiElementBuilder.from(armor.copy())
+                    .addLoreLine(Component.literal("§8Armadura: " + armorNames[i]));
+                    
+                if (canInteract) {
+                    builder.setCallback((idx, type, action, gui) -> {
+                        ItemStack cursorItem = staff.containerMenu.getCarried();
+                        ItemStack targetArmorItem = inv.armor.get(armorSlot).copy();
+                        inv.armor.set(armorSlot, cursorItem);
+                        staff.containerMenu.setCarried(targetArmorItem);
+                        this.close();
+                        new SpyGui(staff, target).open();
+                    });
+                }
+                setSlot(guiSlot, builder.build());
             }
         }
 
         // Slot 40 → offhand
         ItemStack offhand = inv.offhand.get(0);
         if (!offhand.isEmpty()) {
-            setSlot(40, GuiElementBuilder.from(offhand.copy())
-                .addLoreLine(Component.literal("§8Mano secundaria"))
-                .build());
+            var builder = GuiElementBuilder.from(offhand.copy())
+                .addLoreLine(Component.literal("§8Mano secundaria"));
+                
+            if (canInteract) {
+                builder.setCallback((idx, type, action, gui) -> {
+                    ItemStack cursorItem = staff.containerMenu.getCarried();
+                    ItemStack targetOffhandItem = inv.offhand.get(0).copy();
+                    inv.offhand.set(0, cursorItem);
+                    staff.containerMenu.setCarried(targetOffhandItem);
+                    this.close();
+                    new SpyGui(staff, target).open();
+                });
+            }
+            setSlot(40, builder.build());
         }
 
         // Botón cerrar
