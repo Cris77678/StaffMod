@@ -57,7 +57,15 @@ public class StaffMainGui extends SimpleGui {
             setSlot(8, new GuiElementBuilder(Items.SKULL_BANNER_PATTERN).setName(Component.literal("§c§lKill")).addLoreLine(Component.literal("§7Matar a un jugador.")).setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.KILL, this).open()).build());
         else setSlot(8, lockedSlot("Kill", "staffmod.kill"));
 
-        // FASE 2: Botón de Auditoría y Estadísticas
+        // FASE 3: Botón de Tickets
+        setSlot(15, new GuiElementBuilder(Items.MAP)
+            .setName(Component.literal("§e§lTickets de Jugadores"))
+            .addLoreLine(Component.literal("§7Revisa y atiende los reportes."))
+            .addLoreLine(Component.literal("§7Tickets actuales: §f" + DataStore.getAllTickets().size()))
+            .setCallback((idx, type, action, gui) -> new TicketGui(staff, this).open())
+            .build());
+
+        // FASE 2: Botón de Auditoría
         setSlot(16, new GuiElementBuilder(Items.WRITTEN_BOOK)
             .setName(Component.literal("§6§lAuditoría y Estadísticas"))
             .addLoreLine(Component.literal("§7Ver el historial de acciones"))
