@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "staffmod",
+  "version": "${version}",
+  "name": "StaffMod",
+  "description": "Panel de staff completo con GUI: kick, mute, jail, ban, freeze, spy, warn, teleport, kill. Integración LuckPerms.",
+  "authors": ["TuNombre"],
+  "license": "MIT",
+  "environment": "server",
+  "entrypoints": {
+    "main": ["me.drex.staffmod.StaffMod"]
+  },
+  "mixins": ["staffmod.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
