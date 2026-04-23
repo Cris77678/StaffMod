@@ -18,24 +18,42 @@ public abstract class CommandMixin {
 
     @Shadow public ServerPlayer player;
 
-    /** Bloquear todos los comandos si el jugador está jaileado */
     @Inject(method = "handleChatCommand", at = @At("HEAD"), cancellable = true)
     private void staffmod$blockJailedCommands(ServerboundChatCommandPacket packet, CallbackInfo ci) {
-        checkJail(ci);
+        checkRestrictions(packet.command(), ci);
     }
 
     @Inject(method = "handleSignedChatCommand", at = @At("HEAD"), cancellable = true)
     private void staffmod$blockJailedSignedCommands(ServerboundChatCommandSignedPacket packet, CallbackInfo ci) {
-        checkJail(ci);
+        checkRestrictions(packet.command(), ci);
     }
 
-    private void checkJail(CallbackInfo ci) {
+    private void checkRestrictions(String command, CallbackInfo ci) {
         PlayerData pd = DataStore.get(player.getUUID());
-        if (pd != null && pd.isJailActive()) {
+        if (pd == null) return;
+
+        // Regla 1: Jugadores en cárcel no usan NINGÚN comando
+        if (pd.isJailActive()) {
             player.sendSystemMessage(Component.literal(
                 "§c[Staff] Estás en la cárcel. No puedes usar comandos. Expira: §e"
                 + PlayerData.formatExpiry(pd.jailExpiry)));
             ci.cancel();
+            return;
+        }
+
+        // Regla 2 (FIX BUG 5): Jugadores Muteados no pueden usar comandos de mensaje directo
+        if (pd.isMuteActive()) {
+            String cmdLower = command.toLowerCase();
+            // Verifica los comandos de comunicación vainilla y de plugins habituales
+            if (cmdLower.startsWith("msg ") || cmdLower.startsWith("tell ") || 
+                cmdLower.startsWith("w ") || cmdLower.startsWith("me ") || 
+                cmdLower.startsWith("r ") || cmdLower.startsWith("reply ")) {
+                
+                player.sendSystemMessage(Component.literal(
+                    "§c[Staff] Estás muteado. No puedes enviar mensajes privados. Expira: §e"
+                    + PlayerData.formatExpiry(pd.muteExpiry)));
+                ci.cancel();
+            }
         }
     }
 }
