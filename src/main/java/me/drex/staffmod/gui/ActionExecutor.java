@@ -2,17 +2,40 @@ package me.drex.staffmod.gui;
 
 import me.drex.staffmod.config.DataStore;
 import me.drex.staffmod.config.PlayerData;
+import me.drex.staffmod.config.StaffProfile;
 import me.drex.staffmod.util.JailManager;
 import me.drex.staffmod.util.PermissionUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.damagesource.DamageSources;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class ActionExecutor {
+
+    // FASE 2: Función interna para registrar historial de staff
+    private static void logHistory(ServerPlayer staff, String actionType, ServerPlayer target, String detail) {
+        StaffProfile sp = DataStore.getStaffProfile(staff.getUUID(), staff.getName().getString());
+        switch (actionType) {
+            case "KICK" -> sp.kicks++;
+            case "MUTE" -> sp.mutes++;
+            case "JAIL" -> sp.jails++;
+            case "BAN"  -> sp.bans++;
+            case "WARN" -> sp.warns++;
+        }
+        
+        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("HH:mm dd/MM");
+        String time = LocalDateTime.now().format(dtf);
+        sp.addAction("§8[" + time + "] §f" + actionType + " §7a §e" + target.getName().getString() + " §8(§f" + detail + "§8)");
+    }
 
     public static void kick(ServerPlayer staff, ServerPlayer target, String reason) {
         if (guard(staff, target)) return;
         target.connection.disconnect(Component.literal("§cHas sido expulsado.\n§fRazón: §e" + reason));
+        
+        logHistory(staff, "KICK", target, reason);
+        DataStore.save();
+
         broadcast(staff, "§c[Staff] §f" + staff.getName().getString()
             + " §ckickeó §fa §f" + target.getName().getString() + "§7. Razón: " + reason);
     }
@@ -22,7 +45,10 @@ public class ActionExecutor {
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
         pd.muted      = true;
         pd.muteExpiry = PlayerData.parseDuration(duration);
+        
+        logHistory(staff, "MUTE", target, duration + " - " + reason);
         DataStore.save();
+
         target.sendSystemMessage(Component.literal(
             "§c[Staff] Has sido muteado.\n§fRazón: §e" + reason
             + "\n§fDuración: §e" + PlayerData.formatExpiry(pd.muteExpiry)));
@@ -49,7 +75,10 @@ public class ActionExecutor {
         pd.jailed     = true;
         pd.jailName   = jailName;
         pd.jailExpiry = PlayerData.parseDuration(duration);
+        
+        logHistory(staff, "JAIL", target, jailName + " - " + duration);
         DataStore.save();
+
         JailManager.teleportToJail(target, jailName);
         target.sendSystemMessage(Component.literal(
             "§c[Staff] Has sido enviado a la cárcel §f" + jailName
@@ -81,7 +110,10 @@ public class ActionExecutor {
         pd.banned    = true;
         pd.banExpiry = PlayerData.parseDuration(duration);
         pd.banReason = reason;
+        
+        logHistory(staff, "BAN", target, duration + " - " + reason);
         DataStore.save();
+
         String expStr = PlayerData.formatExpiry(pd.banExpiry);
         target.connection.disconnect(Component.literal(
             "§cHas sido baneado.\n§fRazón: §e" + reason + "\n§fExpira: §e" + expStr));
@@ -127,7 +159,10 @@ public class ActionExecutor {
         if (guard(staff, target)) return;
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
         pd.warns.add(new PlayerData.WarnEntry(reason, System.currentTimeMillis(), staff.getName().getString()));
+        
+        logHistory(staff, "WARN", target, reason);
         DataStore.save();
+
         target.sendSystemMessage(Component.literal(
             "§c[Staff] Has recibido una advertencia (#" + pd.warns.size() + ").\n§fRazón: §e" + reason));
         staff.sendSystemMessage(Component.literal(
@@ -161,7 +196,6 @@ public class ActionExecutor {
         return false;
     }
 
-    // FASE 1: Notificar solo a staff activos
     private static void broadcast(ServerPlayer staff, String message) {
         for (ServerPlayer p : staff.getServer().getPlayerList().getPlayers()) {
             if (PermissionUtil.has(p, "staffmod.use") && DataStore.isOnDuty(p.getUUID())) {
