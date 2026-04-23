@@ -10,7 +10,6 @@ import net.minecraft.world.damagesource.DamageSources;
 
 public class ActionExecutor {
 
-    // ── Kick ─────────────────────────────────────────────────────────────────
     public static void kick(ServerPlayer staff, ServerPlayer target, String reason) {
         if (guard(staff, target)) return;
         target.connection.disconnect(Component.literal("§cHas sido expulsado.\n§fRazón: §e" + reason));
@@ -18,7 +17,6 @@ public class ActionExecutor {
             + " §ckickeó §fa §f" + target.getName().getString() + "§7. Razón: " + reason);
     }
 
-    // ── Mute ─────────────────────────────────────────────────────────────────
     public static void mute(ServerPlayer staff, ServerPlayer target, String duration, String reason) {
         if (guard(staff, target)) return;
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
@@ -45,7 +43,6 @@ public class ActionExecutor {
         staff.sendSystemMessage(Component.literal("§a[Staff] Mute removido a " + target.getName().getString()));
     }
 
-    // ── Jail ─────────────────────────────────────────────────────────────────
     public static void jail(ServerPlayer staff, ServerPlayer target, String jailName, String duration) {
         if (guard(staff, target)) return;
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
@@ -70,7 +67,6 @@ public class ActionExecutor {
         }
         pd.jailed = false; pd.jailExpiry = -1; pd.jailName = "";
         DataStore.save();
-        // Teleportar al spawn
         var overworld = target.getServer().overworld();
         var spawn = overworld.getSharedSpawnPos();
         target.teleportTo(overworld, spawn.getX(), spawn.getY(), spawn.getZ(),
@@ -79,7 +75,6 @@ public class ActionExecutor {
         staff.sendSystemMessage(Component.literal("§a[Staff] " + target.getName().getString() + " liberado."));
     }
 
-    // ── Ban ──────────────────────────────────────────────────────────────────
     public static void ban(ServerPlayer staff, ServerPlayer target, String duration, String reason) {
         if (guard(staff, target)) return;
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
@@ -106,7 +101,6 @@ public class ActionExecutor {
         staff.sendSystemMessage(Component.literal("§a[Staff] Ban removido a " + target.getName().getString()));
     }
 
-    // ── Freeze ───────────────────────────────────────────────────────────────
     public static void freeze(ServerPlayer staff, ServerPlayer target) {
         if (guard(staff, target)) return;
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
@@ -121,18 +115,14 @@ public class ActionExecutor {
         }
     }
 
-    // ── Spy ──────────────────────────────────────────────────────────────────
     public static void spy(ServerPlayer staff, ServerPlayer target) {
         if (PermissionUtil.has(staff, "staffmod.spy.interact")) {
-            // Abrir inventario del target con interacción completa
             new SpyGui(staff, target).open();
         } else {
-            // Solo lectura
             new SpyReadOnlyGui(staff, target).open();
         }
     }
 
-    // ── Warn ─────────────────────────────────────────────────────────────────
     public static void warn(ServerPlayer staff, ServerPlayer target, String reason) {
         if (guard(staff, target)) return;
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
@@ -145,7 +135,6 @@ public class ActionExecutor {
             + " (total: " + pd.warns.size() + ")"));
     }
 
-    // ── Teleport ─────────────────────────────────────────────────────────────
     public static void teleport(ServerPlayer staff, ServerPlayer target) {
         staff.teleportTo(
             (net.minecraft.server.level.ServerLevel) target.level(),
@@ -155,7 +144,6 @@ public class ActionExecutor {
             "§3[Staff] Teleportado a §f" + target.getName().getString()));
     }
 
-    // ── Kill ─────────────────────────────────────────────────────────────────
     public static void kill(ServerPlayer staff, ServerPlayer target) {
         if (guard(staff, target)) return;
         target.hurt(target.damageSources().genericKill(), Float.MAX_VALUE);
@@ -164,9 +152,6 @@ public class ActionExecutor {
             + " §cmató §fa §f" + target.getName().getString());
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
-    /** Devuelve true si el objetivo está protegido (OP) y notifica al staff. */
     private static boolean guard(ServerPlayer staff, ServerPlayer target) {
         if (PermissionUtil.isProtected(target)) {
             staff.sendSystemMessage(Component.literal(
@@ -176,10 +161,10 @@ public class ActionExecutor {
         return false;
     }
 
-    /** Manda un mensaje a todos los jugadores con permiso staffmod.use */
+    // FASE 1: Notificar solo a staff activos
     private static void broadcast(ServerPlayer staff, String message) {
         for (ServerPlayer p : staff.getServer().getPlayerList().getPlayers()) {
-            if (PermissionUtil.has(p, "staffmod.use")) {
+            if (PermissionUtil.has(p, "staffmod.use") && DataStore.isOnDuty(p.getUUID())) {
                 p.sendSystemMessage(Component.literal(message));
             }
         }
