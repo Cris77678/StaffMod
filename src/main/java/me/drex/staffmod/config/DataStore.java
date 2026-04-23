@@ -19,18 +19,18 @@ public class DataStore {
     private static final Path DATA_DIR = FabricLoader.getInstance().getConfigDir().resolve("staffmod");
     private static final Path PLAYERS_FILE = DATA_DIR.resolve("players.json");
     private static final Path JAILS_FILE   = DATA_DIR.resolve("jails.json");
+    // FASE 2: Archivo de Estadísticas
+    private static final Path STAFF_STATS_FILE = DATA_DIR.resolve("staff_stats.json");
 
     private static final Map<UUID, PlayerData> players = new HashMap<>();
     private static final Map<String, JailZone> jails   = new LinkedHashMap<>();
+    // FASE 2: Mapa de perfiles de Staff en memoria
+    private static final Map<UUID, StaffProfile> staffProfiles = new HashMap<>();
     
-    // FASE 1: Staff en servicio (temporal, no se guarda en JSON)
     private static final Set<UUID> onDuty = new HashSet<>();
-
     private static int tickCounter = 0;
 
-    public static boolean isOnDuty(UUID uuid) {
-        return onDuty.contains(uuid);
-    }
+    public static boolean isOnDuty(UUID uuid) { return onDuty.contains(uuid); }
 
     public static void toggleDuty(UUID uuid) {
         if (onDuty.contains(uuid)) onDuty.remove(uuid);
@@ -55,6 +55,15 @@ public class DataStore {
         boolean removed = jails.remove(name.toLowerCase()) != null;
         if (removed) save();
         return removed;
+    }
+
+    // FASE 2: Obtener perfil de staff
+    public static StaffProfile getStaffProfile(UUID uuid, String name) {
+        return staffProfiles.computeIfAbsent(uuid, k -> new StaffProfile(uuid, name));
+    }
+
+    public static Collection<StaffProfile> allStaffProfiles() {
+        return staffProfiles.values();
     }
 
     public static void tickExpirations(MinecraftServer server) {
@@ -114,8 +123,36 @@ public class DataStore {
             Files.createDirectories(DATA_DIR);
             loadPlayers();
             loadJails();
+            loadStaffStats(); // FASE 2
         } catch (IOException e) {
             StaffMod.LOGGER.error("[StaffMod] Error creando directorio de datos", e);
+        }
+    }
+
+    // FASE 2: Carga de estadísticas
+    private static void loadStaffStats() {
+        if (!Files.exists(STAFF_STATS_FILE)) return;
+        try (Reader r = new FileReader(STAFF_STATS_FILE.toFile())) {
+            JsonObject root = GSON.fromJson(r, JsonObject.class);
+            if (root == null) return;
+            for (Map.Entry<String, JsonElement> e : root.entrySet()) {
+                UUID uuid = UUID.fromString(e.getKey());
+                JsonObject obj = e.getValue().getAsJsonObject();
+                StaffProfile sp = new StaffProfile(uuid, getS(obj, "name"));
+                sp.bans  = getI(obj, "bans");
+                sp.mutes = getI(obj, "mutes");
+                sp.warns = getI(obj, "warns");
+                sp.jails = getI(obj, "jails");
+                sp.kicks = getI(obj, "kicks");
+                if (obj.has("history")) {
+                    for (JsonElement he : obj.get("history").getAsJsonArray()) {
+                        sp.recentHistory.add(he.getAsString());
+                    }
+                }
+                staffProfiles.put(uuid, sp);
+            }
+        } catch (Exception e) {
+            StaffMod.LOGGER.error("[StaffMod] Error cargando staff_stats.json", e);
         }
     }
 
@@ -175,9 +212,30 @@ public class DataStore {
             Files.createDirectories(DATA_DIR);
             savePlayers();
             saveJails();
+            saveStaffStats(); // FASE 2
         } catch (IOException e) {
             StaffMod.LOGGER.error("[StaffMod] Error guardando datos", e);
         }
+    }
+
+    // FASE 2: Guardar estadísticas
+    private static void saveStaffStats() throws IOException {
+        JsonObject root = new JsonObject();
+        for (Map.Entry<UUID, StaffProfile> e : staffProfiles.entrySet()) {
+            StaffProfile sp = e.getValue();
+            JsonObject obj = new JsonObject();
+            obj.addProperty("name",  sp.name);
+            obj.addProperty("bans",  sp.bans);
+            obj.addProperty("mutes", sp.mutes);
+            obj.addProperty("warns", sp.warns);
+            obj.addProperty("jails", sp.jails);
+            obj.addProperty("kicks", sp.kicks);
+            JsonArray hist = new JsonArray();
+            for (String h : sp.recentHistory) hist.add(h);
+            obj.add("history", hist);
+            root.add(e.getKey().toString(), obj);
+        }
+        try (Writer w = new FileWriter(STAFF_STATS_FILE.toFile())) { GSON.toJson(root, w); }
     }
 
     private static void savePlayers() throws IOException {
@@ -227,4 +285,5 @@ public class DataStore {
     private static long    getL(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsLong()    : -1L; }
     private static String  getS(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsString()  : ""; }
     private static double  getD(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsDouble()  : 0.0; }
+    private static int     getI(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsInt()     : 0; } // FASE 2 Helper
 }
