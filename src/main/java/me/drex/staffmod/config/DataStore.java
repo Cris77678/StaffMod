@@ -19,16 +19,17 @@ public class DataStore {
     private static final Path DATA_DIR = FabricLoader.getInstance().getConfigDir().resolve("staffmod");
     private static final Path PLAYERS_FILE = DATA_DIR.resolve("players.json");
     private static final Path JAILS_FILE   = DATA_DIR.resolve("jails.json");
-    // FASE 2: Archivo de Estadísticas
     private static final Path STAFF_STATS_FILE = DATA_DIR.resolve("staff_stats.json");
+    private static final Path TICKETS_FILE = DATA_DIR.resolve("tickets.json"); // FASE 3
 
     private static final Map<UUID, PlayerData> players = new HashMap<>();
     private static final Map<String, JailZone> jails   = new LinkedHashMap<>();
-    // FASE 2: Mapa de perfiles de Staff en memoria
     private static final Map<UUID, StaffProfile> staffProfiles = new HashMap<>();
+    private static final Map<Integer, TicketEntry> tickets = new LinkedHashMap<>(); // FASE 3
     
     private static final Set<UUID> onDuty = new HashSet<>();
     private static int tickCounter = 0;
+    private static int nextTicketId = 1; // FASE 3
 
     public static boolean isOnDuty(UUID uuid) { return onDuty.contains(uuid); }
 
@@ -57,13 +58,29 @@ public class DataStore {
         return removed;
     }
 
-    // FASE 2: Obtener perfil de staff
     public static StaffProfile getStaffProfile(UUID uuid, String name) {
         return staffProfiles.computeIfAbsent(uuid, k -> new StaffProfile(uuid, name));
     }
 
     public static Collection<StaffProfile> allStaffProfiles() {
         return staffProfiles.values();
+    }
+
+    // FASE 3: Métodos de Tickets
+    public static TicketEntry createTicket(UUID creatorUuid, String creatorName, String message) {
+        TicketEntry t = new TicketEntry(nextTicketId++, creatorUuid, creatorName, message);
+        tickets.put(t.id, t);
+        save();
+        return t;
+    }
+
+    public static Collection<TicketEntry> getAllTickets() {
+        return tickets.values();
+    }
+
+    public static void removeTicket(int id) {
+        tickets.remove(id);
+        save();
     }
 
     public static void tickExpirations(MinecraftServer server) {
@@ -123,13 +140,33 @@ public class DataStore {
             Files.createDirectories(DATA_DIR);
             loadPlayers();
             loadJails();
-            loadStaffStats(); // FASE 2
+            loadStaffStats();
+            loadTickets(); // FASE 3
         } catch (IOException e) {
             StaffMod.LOGGER.error("[StaffMod] Error creando directorio de datos", e);
         }
     }
 
-    // FASE 2: Carga de estadísticas
+    private static void loadTickets() {
+        if (!Files.exists(TICKETS_FILE)) return;
+        try (Reader r = new FileReader(TICKETS_FILE.toFile())) {
+            JsonObject root = GSON.fromJson(r, JsonObject.class);
+            if (root == null) return;
+            nextTicketId = getI(root, "nextTicketId");
+            if (root.has("tickets")) {
+                for (JsonElement el : root.get("tickets").getAsJsonArray()) {
+                    JsonObject obj = el.getAsJsonObject();
+                    TicketEntry t = new TicketEntry(getI(obj, "id"), UUID.fromString(getS(obj, "creatorUuid")), getS(obj, "creatorName"), getS(obj, "message"));
+                    t.status = getS(obj, "status");
+                    t.handledBy = getS(obj, "handledBy");
+                    tickets.put(t.id, t);
+                }
+            }
+        } catch (Exception e) {
+            StaffMod.LOGGER.error("[StaffMod] Error cargando tickets.json", e);
+        }
+    }
+
     private static void loadStaffStats() {
         if (!Files.exists(STAFF_STATS_FILE)) return;
         try (Reader r = new FileReader(STAFF_STATS_FILE.toFile())) {
@@ -212,13 +249,31 @@ public class DataStore {
             Files.createDirectories(DATA_DIR);
             savePlayers();
             saveJails();
-            saveStaffStats(); // FASE 2
+            saveStaffStats();
+            saveTickets(); // FASE 3
         } catch (IOException e) {
             StaffMod.LOGGER.error("[StaffMod] Error guardando datos", e);
         }
     }
 
-    // FASE 2: Guardar estadísticas
+    private static void saveTickets() throws IOException {
+        JsonObject root = new JsonObject();
+        root.addProperty("nextTicketId", nextTicketId);
+        JsonArray arr = new JsonArray();
+        for (TicketEntry t : tickets.values()) {
+            JsonObject obj = new JsonObject();
+            obj.addProperty("id", t.id);
+            obj.addProperty("creatorUuid", t.creatorUuid.toString());
+            obj.addProperty("creatorName", t.creatorName);
+            obj.addProperty("message", t.message);
+            obj.addProperty("status", t.status);
+            obj.addProperty("handledBy", t.handledBy);
+            arr.add(obj);
+        }
+        root.add("tickets", arr);
+        try (Writer w = new FileWriter(TICKETS_FILE.toFile())) { GSON.toJson(root, w); }
+    }
+
     private static void saveStaffStats() throws IOException {
         JsonObject root = new JsonObject();
         for (Map.Entry<UUID, StaffProfile> e : staffProfiles.entrySet()) {
@@ -285,5 +340,5 @@ public class DataStore {
     private static long    getL(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsLong()    : -1L; }
     private static String  getS(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsString()  : ""; }
     private static double  getD(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsDouble()  : 0.0; }
-    private static int     getI(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsInt()     : 0; } // FASE 2 Helper
+    private static int     getI(JsonObject o, String k) { return o.has(k) ? o.get(k).getAsInt()     : 0; }
 }
