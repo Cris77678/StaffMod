@@ -2,6 +2,7 @@ package me.drex.staffmod;
 
 import me.drex.staffmod.command.StaffCommand;
 import me.drex.staffmod.command.TicketCommand;
+import me.drex.staffmod.command.StaffChatCommand;
 import me.drex.staffmod.config.DataStore;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -26,14 +27,17 @@ public class StaffMod implements ModInitializer {
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             StaffCommand.register(dispatcher);
-            TicketCommand.register(dispatcher); // FASE 3: Registro de TicketCommand
+            TicketCommand.register(dispatcher);
+            StaffChatCommand.register(dispatcher);
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> DataStore.save());
-
         ServerLifecycleEvents.SERVER_STARTED.register(server -> SERVER = server);
 
-        ServerTickEvents.END_SERVER_TICK.register(server -> DataStore.tickExpirations(server));
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            DataStore.tickExpirations(server);
+            DataStore.tickAnnouncements(server);
+        });
 
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
             DataStore.applyOnJoin(handler.player)
