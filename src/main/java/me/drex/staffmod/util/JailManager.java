@@ -3,8 +3,12 @@ package me.drex.staffmod.util;
 import me.drex.staffmod.config.DataStore;
 import me.drex.staffmod.config.JailZone;
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.core.registries.Registries;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,7 +16,6 @@ import java.util.UUID;
 
 public class JailManager {
 
-    // Selecciones pos1/pos2 en progreso por jugador staff
     private static final Map<UUID, BlockPos> pos1 = new HashMap<>();
     private static final Map<UUID, BlockPos> pos2 = new HashMap<>();
 
@@ -21,7 +24,6 @@ public class JailManager {
     public static BlockPos getPos1(UUID staffUuid) { return pos1.get(staffUuid); }
     public static BlockPos getPos2(UUID staffUuid) { return pos2.get(staffUuid); }
 
-    /** Crea la zona de jail con las posiciones seleccionadas. Devuelve error o null si OK. */
     public static String createJail(ServerPlayer staff, String name) {
         BlockPos p1 = pos1.get(staff.getUUID());
         BlockPos p2 = pos2.get(staff.getUUID());
@@ -36,36 +38,42 @@ public class JailManager {
         return null;
     }
 
-    /** Teleporta al jugador al centro de la cárcel indicada. */
     public static boolean teleportToJail(ServerPlayer player, String jailName) {
         JailZone zone = DataStore.getJail(jailName);
         if (zone == null) {
-            // Si no existe la zona, usar la primera disponible
             zone = DataStore.getJails().values().stream().findFirst().orElse(null);
             if (zone == null) return false;
         }
+        
+        // FIX BUG 2: Buscar el mundo real de la cárcel según su dimensión
+        ResourceKey<net.minecraft.world.level.Level> dimKey = ResourceKey.create(
+            Registries.DIMENSION, ResourceLocation.parse(zone.dimension)
+        );
+        ServerLevel targetLevel = player.getServer().getLevel(dimKey);
+        
+        // Fallback preventivo
+        if (targetLevel == null) targetLevel = player.getServer().overworld();
+
         player.teleportTo(
-            player.getServer().overworld(),
+            targetLevel,
             zone.spawnX, zone.spawnY, zone.spawnZ,
             player.getYRot(), player.getXRot());
         return true;
     }
 
-    /**
-     * Verifica si un jugador jaileado salió de su zona y lo devuelve.
-     * Llamado desde MovementMixin.
-     */
     public static void checkJailBounds(ServerPlayer player) {
         var pd = DataStore.get(player.getUUID());
         if (pd == null || !pd.isJailActive()) return;
         JailZone zone = DataStore.getJail(pd.jailName);
         if (zone == null) return;
         Vec3 pos = player.position();
+        
         if (!zone.contains(pos.x, pos.y, pos.z)) {
-            double[] clamped = zone.clamp(pos.x, pos.y, pos.z);
-            player.teleportTo(clamped[0], clamped[1], clamped[2]);
+            // FIX BUG 4: En lugar de usar clamp() hacia los bordes, usar el centro (Spawn)
+            player.teleportTo(zone.spawnX, zone.spawnY, zone.spawnZ);
             player.sendSystemMessage(
-                net.minecraft.network.chat.Component.literal("§c[Staff] No puedes salir de la cárcel."));
+                net.minecraft.network.chat.Component.literal("§c[Staff] No puedes salir de la cárcel.")
+            );
         }
     }
 }
