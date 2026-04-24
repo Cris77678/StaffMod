@@ -45,14 +45,17 @@ public class JailManager {
             if (zone == null) return false;
         }
         
-        // FIX BUG 2: Buscar el mundo real de la cárcel según su dimensión
         ResourceKey<net.minecraft.world.level.Level> dimKey = ResourceKey.create(
             Registries.DIMENSION, ResourceLocation.parse(zone.dimension)
         );
         ServerLevel targetLevel = player.getServer().getLevel(dimKey);
         
-        // Fallback preventivo
         if (targetLevel == null) targetLevel = player.getServer().overworld();
+
+        // FIX: Prevenir glitch de entidades montadas
+        if (player.isPassenger()) {
+            player.stopRiding();
+        }
 
         player.teleportTo(
             targetLevel,
@@ -67,7 +70,6 @@ public class JailManager {
         JailZone zone = DataStore.getJail(pd.jailName);
         if (zone == null) return;
         
-        // FIX BUG 4: Bloquear evasión por cambios de dimensión (End, Nether)
         String currentDim = player.level().dimension().location().toString();
         if (!currentDim.equals(zone.dimension)) {
             teleportToJail(player, zone.name);

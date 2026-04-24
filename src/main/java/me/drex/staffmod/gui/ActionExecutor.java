@@ -190,6 +190,12 @@ public class ActionExecutor {
 
     public static void teleport(ServerPlayer staff, ServerPlayer target) {
         if (isOffline(staff, target)) return;
+        
+        // FIX: Prevenir que el staff se teletransporte con un ente montado
+        if (staff.isPassenger()) {
+            staff.stopRiding();
+        }
+
         staff.teleportTo(
             (net.minecraft.server.level.ServerLevel) target.level(),
             target.getX(), target.getY(), target.getZ(),

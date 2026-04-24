@@ -28,6 +28,7 @@ public class PlayerData {
     public boolean jailed = false;
     public long jailExpiry = -1;
     public String jailName = "";
+    public boolean pendingUnjail = false; // Solución evasión offline
 
     // Warns
     public List<WarnEntry> warns = new ArrayList<>();

@@ -29,8 +29,6 @@ public class TicketGui extends SimpleGui {
     private void build() {
         List<TicketEntry> tickets = new ArrayList<>(DataStore.getAllTickets());
         
-        // FIX BUG 5: Revertir la lista. Los tickets más nuevos (recientes) van primero.
-        // Esto evita que el límite de 53 oculte para siempre los tickets nuevos.
         Collections.reverse(tickets);
         
         if (tickets.isEmpty()) {
@@ -41,15 +39,23 @@ public class TicketGui extends SimpleGui {
 
         int slot = 0;
         for (TicketEntry t : tickets) {
-            if (slot >= 53) break; // Ahora el límite descarta los muy viejos, no los nuevos
+            if (slot >= 53) break;
 
             boolean isOpen = t.status.equals("ABIERTO");
             
             GuiElementBuilder builder = new GuiElementBuilder(isOpen ? Items.PAPER : Items.MAP)
-                .setName(Component.literal((isOpen ? "§a§l" : "§e§l") + "Ticket #" + t.id + " - " + t.creatorName))
-                .addLoreLine(Component.literal("§7Mensaje: §f" + t.message))
-                .addLoreLine(Component.literal("§7Estado: " + (isOpen ? "§aABIERTO" : "§eTOMADO por " + t.handledBy)))
-                .addLoreLine(Component.literal(""));
+                .setName(Component.literal((isOpen ? "§a§l" : "§e§l") + "Ticket #" + t.id + " - " + t.creatorName));
+                
+            // FIX: Dividir el texto en líneas de 35 caracteres para que no salga de la pantalla
+            String msg = t.message;
+            int maxLineLength = 35;
+            for (int i = 0; i < msg.length(); i += maxLineLength) {
+                String chunk = msg.substring(i, Math.min(msg.length(), i + maxLineLength));
+                builder.addLoreLine(Component.literal((i == 0 ? "§7Mensaje: §f" : "§f") + chunk));
+            }
+
+            builder.addLoreLine(Component.literal("§7Estado: " + (isOpen ? "§aABIERTO" : "§eTOMADO por " + t.handledBy)));
+            builder.addLoreLine(Component.literal(""));
 
             if (isOpen) {
                 builder.addLoreLine(Component.literal("§eClick Izquierdo: §fTomar ticket"));

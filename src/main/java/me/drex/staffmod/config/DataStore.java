@@ -12,6 +12,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DataStore {
 
@@ -21,15 +22,16 @@ public class DataStore {
     private static final Path JAILS_FILE   = DATA_DIR.resolve("jails.json");
     private static final Path STAFF_STATS_FILE = DATA_DIR.resolve("staff_stats.json");
     private static final Path TICKETS_FILE = DATA_DIR.resolve("tickets.json");
-    private static final Path TOGGLES_FILE = DATA_DIR.resolve("toggles.json"); // FIX: Archivo para persistencia de estados de staff
+    private static final Path TOGGLES_FILE = DATA_DIR.resolve("toggles.json");
 
-    private static final Map<UUID, PlayerData> players = new HashMap<>();
-    private static final Map<String, JailZone> jails   = new LinkedHashMap<>();
-    private static final Map<UUID, StaffProfile> staffProfiles = new HashMap<>();
-    private static final Map<Integer, TicketEntry> tickets = new LinkedHashMap<>();
+    // FIX: ConcurrentHashMap para evitar ConcurrentModificationException
+    private static final Map<UUID, PlayerData> players = new ConcurrentHashMap<>();
+    private static final Map<String, JailZone> jails   = new ConcurrentHashMap<>();
+    private static final Map<UUID, StaffProfile> staffProfiles = new ConcurrentHashMap<>();
+    private static final Map<Integer, TicketEntry> tickets = new ConcurrentHashMap<>();
     
-    private static final Set<UUID> onDuty = new HashSet<>();
-    private static final Set<UUID> staffChatToggled = new HashSet<>();
+    private static final Set<UUID> onDuty = Collections.synchronizedSet(new HashSet<>());
+    private static final Set<UUID> staffChatToggled = Collections.synchronizedSet(new HashSet<>());
 
     private static int tickCounter = 0;
     private static int nextTicketId = 1;
@@ -66,7 +68,6 @@ public class DataStore {
     public static boolean removeJail(String name) {
         boolean removed = jails.remove(name.toLowerCase()) != null;
         if (removed) {
-            // FIX: Liberar y perdonar a los jugadores que estaban en esa cárcel eliminada
             for (PlayerData pd : players.values()) {
                 if (pd.jailed && pd.jailName.equalsIgnoreCase(name)) {
                     pd.jailed = false;
@@ -118,8 +119,7 @@ public class DataStore {
         long now = System.currentTimeMillis();
         boolean needsSaving = false;
         
-        // FIX: Iterar sobre una copia para evitar ConcurrentModificationException
-        for (PlayerData pd : new ArrayList<>(players.values())) {
+        for (PlayerData pd : players.values()) {
             if (pd.muted && pd.muteExpiry != -1 && now >= pd.muteExpiry) {
                 pd.muted = false;
                 needsSaving = true;
@@ -137,6 +137,9 @@ public class DataStore {
                         server.overworld().getSharedSpawnPos().getY(),
                         server.overworld().getSharedSpawnPos().getZ(),
                         sp.getYRot(), sp.getXRot());
+                } else {
+                    // FIX: Marcar al jugador para liberarlo al conectarse
+                    pd.pendingUnjail = true;
                 }
             }
             if (pd.banned && pd.banExpiry != -1 && now >= pd.banExpiry) {
@@ -145,7 +148,6 @@ public class DataStore {
             }
         }
         
-        // FIX: Guardar persistencia de inmediato si un castigo se levantó
         if (needsSaving) {
             save();
         }
@@ -154,6 +156,17 @@ public class DataStore {
     public static void applyOnJoin(ServerPlayer player) {
         PlayerData pd = getOrCreate(player.getUUID(), player.getName().getString());
         pd.lastName = player.getName().getString();
+
+        // FIX: Liberar jugadores que cumplieron su condena offline
+        if (pd.pendingUnjail) {
+            pd.pendingUnjail = false;
+            var overworld = player.getServer().overworld();
+            var spawn = overworld.getSharedSpawnPos();
+            player.teleportTo(overworld, spawn.getX(), spawn.getY(), spawn.getZ(), player.getYRot(), player.getXRot());
+            player.sendSystemMessage(Component.literal("§a[Staff] Tu tiempo en la cárcel expiró mientras estabas desconectado. Eres libre."));
+            save();
+            return;
+        }
 
         if (pd.isBanActive()) {
             String expStr = PlayerData.formatExpiry(pd.banExpiry);
@@ -182,7 +195,7 @@ public class DataStore {
             loadJails();
             loadStaffStats();
             loadTickets();
-            loadToggles(); // FIX: Cargar estados de Duty/StaffChat
+            loadToggles();
         } catch (IOException e) {
             StaffMod.LOGGER.error("[StaffMod] Error creando directorio de datos", e);
         }
@@ -252,6 +265,7 @@ public class DataStore {
                 pd.jailed     = getB(obj, "jailed");
                 pd.jailExpiry = getL(obj, "jailExpiry");
                 pd.jailName   = getS(obj, "jailName");
+                pd.pendingUnjail = getB(obj, "pendingUnjail");
                 if (obj.has("warns")) {
                     for (JsonElement we : obj.get("warns").getAsJsonArray()) {
                         JsonObject wo = we.getAsJsonObject();
@@ -285,7 +299,6 @@ public class DataStore {
         }
     }
 
-    // FIX: Cargar los estados de staff
     private static void loadToggles() {
         if (!Files.exists(TOGGLES_FILE)) return;
         try (Reader r = new FileReader(TOGGLES_FILE.toFile())) {
@@ -309,7 +322,7 @@ public class DataStore {
             saveJails();
             saveStaffStats();
             saveTickets();
-            saveToggles(); // FIX: Guardar estados de Duty/StaffChat
+            saveToggles();
         } catch (IOException e) {
             StaffMod.LOGGER.error("[StaffMod] Error guardando datos", e);
         }
@@ -367,6 +380,7 @@ public class DataStore {
             obj.addProperty("jailed",     pd.jailed);
             obj.addProperty("jailExpiry", pd.jailExpiry);
             obj.addProperty("jailName",   pd.jailName);
+            obj.addProperty("pendingUnjail", pd.pendingUnjail);
             JsonArray warns = new JsonArray();
             for (PlayerData.WarnEntry w : pd.warns) {
                 JsonObject wo = new JsonObject();
@@ -395,7 +409,6 @@ public class DataStore {
         try (Writer w = new FileWriter(JAILS_FILE.toFile())) { GSON.toJson(arr, w); }
     }
 
-    // FIX: Guardar los estados de staff
     private static void saveToggles() throws IOException {
         JsonObject root = new JsonObject();
         JsonArray dutyArr = new JsonArray();
