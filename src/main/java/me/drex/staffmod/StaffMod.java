@@ -12,14 +12,11 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerLoginConnectionEvents;
 import net.fabricmc.fabric.api.message.v1.ServerMessageEvents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.UUID;
 
 public class StaffMod implements ModInitializer {
 
@@ -39,18 +36,7 @@ public class StaffMod implements ModInitializer {
             StaffChatCommand.register(dispatcher);
         });
 
-        // FIX BUG 2: Se utiliza QUERY_START para interceptar baneados antes de la carga del mundo
-        ServerLoginConnectionEvents.QUERY_START.register((handler, server, sender, synchronizer) -> {
-            if (handler.authenticatedProfile != null) {
-                UUID uuid = handler.authenticatedProfile.id();
-                PlayerData pd = DataStore.get(uuid);
-                if (pd != null && pd.isBanActive()) {
-                    handler.disconnect(Component.literal("§cEstás baneado del servidor.\n§fRazón: §e" + pd.banReason + "\n§fExpira: §e" + PlayerData.formatExpiry(pd.banExpiry)));
-                }
-            }
-        });
-
-        // FIX BUG 3: Manejo seguro del chat para silenciados y canal de staff
+        // Bloqueo de chat para Mute y StaffChat
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) -> {
             PlayerData pd = DataStore.get(sender.getUUID());
             if (pd != null && pd.isMuteActive()) {
@@ -73,9 +59,15 @@ public class StaffMod implements ModInitializer {
             DataStore.tickAnnouncements(server);
         });
 
-        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) ->
-            DataStore.applyOnJoin(handler.player)
-        );
+        // CORRECCIÓN: Ban check realizado al unirse para evitar problemas de acceso privado en el Login
+        ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            PlayerData pd = DataStore.get(handler.player.getUUID());
+            if (pd != null && pd.isBanActive()) {
+                handler.disconnect(Component.literal("§cEstás baneado del servidor.\n§fRazón: §e" + pd.banReason + "\n§fExpira: §e" + PlayerData.formatExpiry(pd.banExpiry)));
+                return;
+            }
+            DataStore.applyOnJoin(handler.player);
+        });
 
         LOGGER.info("[StaffMod] Listo.");
     }

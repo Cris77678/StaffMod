@@ -46,7 +46,6 @@ public class TicketGui extends SimpleGui {
             GuiElementBuilder builder = new GuiElementBuilder(isOpen ? Items.PAPER : Items.MAP)
                 .setName(Component.literal((isOpen ? "§a§l" : "§e§l") + "Ticket #" + t.id + " - " + t.creatorName));
                 
-            // Dividir el texto en líneas de 35 caracteres para que no salga de la pantalla
             String msg = t.message;
             int maxLineLength = 35;
             for (int i = 0; i < msg.length(); i += maxLineLength) {
@@ -63,18 +62,17 @@ public class TicketGui extends SimpleGui {
             builder.addLoreLine(Component.literal("§cClick Derecho: §fCerrar ticket"));
 
             builder.setCallback((idx, type, action, gui) -> {
-                // FIX: Uso de métodos .isRight() y .isLeft() de sgui para compatibilidad con 1.21.1
-                if (type.isRight()) {
+                // CORRECCIÓN: Se usa .isRight y .isLeft como campos booleanos (sin paréntesis)
+                if (type.isRight) {
                     DataStore.removeTicket(t.id);
                     staff.sendSystemMessage(Component.literal("§a[Tickets] Ticket #" + t.id + " cerrado."));
-                } else if (type.isLeft() && isOpen) {
+                } else if (type.isLeft && isOpen) {
                     t.status = "TOMADO";
                     t.handledBy = staff.getName().getString();
                     DataStore.save();
                     staff.sendSystemMessage(Component.literal("§a[Tickets] Has tomado el ticket #" + t.id + "."));
                 }
                 
-                // Limpiar y reconstruir la interfaz para reflejar cambios
                 for (int i = 0; i < getSize(); i++) setSlot(i, new GuiElementBuilder(Items.AIR).build());
                 build();
             });
