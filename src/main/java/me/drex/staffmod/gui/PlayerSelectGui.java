@@ -64,7 +64,7 @@ public class PlayerSelectGui extends SimpleGui {
                     return;
                 }
 
-                if (type.isShift) {
+                if (type.isShiftClick()) {
                     switch (action) {
                         case MUTE -> ActionExecutor.mute(staff, finalTarget, "5m", "Mute Rápido (5m)");
                         case BAN -> ActionExecutor.ban(staff, finalTarget, "1d", "Ban Rápido (1d)");

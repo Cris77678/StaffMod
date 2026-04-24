@@ -150,42 +150,6 @@ public class DataStore {
         }
     }
 
-    public static void tickExpirations(MinecraftServer server) {
-        if (++tickCounter < 20) return;
-        tickCounter = 0;
-        long now = System.currentTimeMillis();
-        boolean needsSaving = false;
-        
-        // FIX BUG 1: Solo revisar jugadores online. Salva los TPS del servidor.
-        for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
-            PlayerData pd = get(sp.getUUID());
-            if (pd == null) continue;
-
-            if (pd.muted && pd.muteExpiry != -1 && now >= pd.muteExpiry) {
-                pd.muted = false;
-                needsSaving = true;
-                sp.sendSystemMessage(Component.literal("§a[Staff] Tu mute ha expirado."));
-            }
-            if (pd.jailed && pd.jailExpiry != -1 && now >= pd.jailExpiry) {
-                pd.jailed = false;
-                needsSaving = true;
-                sp.sendSystemMessage(Component.literal("§a[Staff] Has salido de la cárcel."));
-                sp.teleportTo(server.overworld(),
-                    server.overworld().getSharedSpawnPos().getX(),
-                    server.overworld().getSharedSpawnPos().getY(),
-                    server.overworld().getSharedSpawnPos().getZ(),
-                    sp.getYRot(), sp.getXRot());
-            }
-            if (pd.banned && pd.banExpiry != -1 && now >= pd.banExpiry) {
-                pd.banned = false;
-                needsSaving = true;
-            }
-        }
-        
-        if (needsSaving) {
-            save();
-        }
-    }
 
     public static void applyOnJoin(ServerPlayer player) {
         PlayerData pd = getOrCreate(player.getUUID(), player.getName().getString());
