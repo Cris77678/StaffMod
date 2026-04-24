@@ -21,6 +21,7 @@ public class DataStore {
     private static final Path JAILS_FILE   = DATA_DIR.resolve("jails.json");
     private static final Path STAFF_STATS_FILE = DATA_DIR.resolve("staff_stats.json");
     private static final Path TICKETS_FILE = DATA_DIR.resolve("tickets.json");
+    private static final Path TOGGLES_FILE = DATA_DIR.resolve("toggles.json"); // FIX: Archivo para persistencia de estados de staff
 
     private static final Map<UUID, PlayerData> players = new HashMap<>();
     private static final Map<String, JailZone> jails   = new LinkedHashMap<>();
@@ -64,7 +65,17 @@ public class DataStore {
 
     public static boolean removeJail(String name) {
         boolean removed = jails.remove(name.toLowerCase()) != null;
-        if (removed) save();
+        if (removed) {
+            // FIX: Liberar y perdonar a los jugadores que estaban en esa cárcel eliminada
+            for (PlayerData pd : players.values()) {
+                if (pd.jailed && pd.jailName.equalsIgnoreCase(name)) {
+                    pd.jailed = false;
+                    pd.jailExpiry = -1;
+                    pd.jailName = "";
+                }
+            }
+            save();
+        }
         return removed;
     }
 
@@ -107,7 +118,7 @@ public class DataStore {
         long now = System.currentTimeMillis();
         boolean needsSaving = false;
         
-        // FIX BUG 1: Iterar sobre una copia para evitar ConcurrentModificationException
+        // FIX: Iterar sobre una copia para evitar ConcurrentModificationException
         for (PlayerData pd : new ArrayList<>(players.values())) {
             if (pd.muted && pd.muteExpiry != -1 && now >= pd.muteExpiry) {
                 pd.muted = false;
@@ -134,12 +145,7 @@ public class DataStore {
             }
         }
         
-        if (needsSaving) {
-            save();
-        }
-    }
-        
-        // FIX BUG 3: Guardar persistencia de inmediato si un castigo se levantó
+        // FIX: Guardar persistencia de inmediato si un castigo se levantó
         if (needsSaving) {
             save();
         }
@@ -176,6 +182,7 @@ public class DataStore {
             loadJails();
             loadStaffStats();
             loadTickets();
+            loadToggles(); // FIX: Cargar estados de Duty/StaffChat
         } catch (IOException e) {
             StaffMod.LOGGER.error("[StaffMod] Error creando directorio de datos", e);
         }
@@ -278,6 +285,23 @@ public class DataStore {
         }
     }
 
+    // FIX: Cargar los estados de staff
+    private static void loadToggles() {
+        if (!Files.exists(TOGGLES_FILE)) return;
+        try (Reader r = new FileReader(TOGGLES_FILE.toFile())) {
+            JsonObject root = GSON.fromJson(r, JsonObject.class);
+            if (root == null) return;
+            if (root.has("onDuty")) {
+                for (JsonElement el : root.get("onDuty").getAsJsonArray()) onDuty.add(UUID.fromString(el.getAsString()));
+            }
+            if (root.has("staffChat")) {
+                for (JsonElement el : root.get("staffChat").getAsJsonArray()) staffChatToggled.add(UUID.fromString(el.getAsString()));
+            }
+        } catch (Exception e) {
+            StaffMod.LOGGER.error("[StaffMod] Error cargando toggles.json", e);
+        }
+    }
+
     public static synchronized void save() {
         try {
             Files.createDirectories(DATA_DIR);
@@ -285,6 +309,7 @@ public class DataStore {
             saveJails();
             saveStaffStats();
             saveTickets();
+            saveToggles(); // FIX: Guardar estados de Duty/StaffChat
         } catch (IOException e) {
             StaffMod.LOGGER.error("[StaffMod] Error guardando datos", e);
         }
@@ -368,6 +393,20 @@ public class DataStore {
             arr.add(o);
         }
         try (Writer w = new FileWriter(JAILS_FILE.toFile())) { GSON.toJson(arr, w); }
+    }
+
+    // FIX: Guardar los estados de staff
+    private static void saveToggles() throws IOException {
+        JsonObject root = new JsonObject();
+        JsonArray dutyArr = new JsonArray();
+        for (UUID u : onDuty) dutyArr.add(u.toString());
+        root.add("onDuty", dutyArr);
+
+        JsonArray scArr = new JsonArray();
+        for (UUID u : staffChatToggled) scArr.add(u.toString());
+        root.add("staffChat", scArr);
+
+        try (Writer w = new FileWriter(TOGGLES_FILE.toFile())) { GSON.toJson(root, w); }
     }
 
     private static boolean getB(JsonObject o, String k) { return o.has(k) && o.get(k).getAsBoolean(); }

@@ -13,6 +13,15 @@ import java.time.format.DateTimeFormatter;
 
 public class ActionExecutor {
 
+    // NUEVO: Validación antibugs para jugadores que se desconectaron con la GUI abierta
+    private static boolean isOffline(ServerPlayer staff, ServerPlayer target) {
+        if (target.hasDisconnected()) {
+            staff.sendSystemMessage(Component.literal("§c[Staff] El jugador se desconectó. Acción cancelada para evitar errores."));
+            return true;
+        }
+        return false;
+    }
+
     private static void logHistory(ServerPlayer staff, String actionType, ServerPlayer target, String detail) {
         StaffProfile sp = DataStore.getStaffProfile(staff.getUUID(), staff.getName().getString());
         switch (actionType) {
@@ -29,7 +38,7 @@ public class ActionExecutor {
     }
 
     public static void kick(ServerPlayer staff, ServerPlayer target, String reason) {
-        if (guard(staff, target)) return;
+        if (isOffline(staff, target) || guard(staff, target)) return;
         target.connection.disconnect(Component.literal("§cHas sido expulsado.\n§fRazón: §e" + reason));
         
         logHistory(staff, "KICK", target, reason);
@@ -40,7 +49,7 @@ public class ActionExecutor {
     }
 
     public static void mute(ServerPlayer staff, ServerPlayer target, String duration, String reason) {
-        if (guard(staff, target)) return;
+        if (isOffline(staff, target) || guard(staff, target)) return;
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
         pd.muted      = true;
         pd.muteExpiry = PlayerData.parseDuration(duration);
@@ -57,6 +66,7 @@ public class ActionExecutor {
     }
 
     public static void unmute(ServerPlayer staff, ServerPlayer target) {
+        if (isOffline(staff, target)) return;
         PlayerData pd = DataStore.get(target.getUUID());
         if (pd == null || !pd.muted) {
             staff.sendSystemMessage(Component.literal("§c[Staff] Ese jugador no está muteado."));
@@ -69,7 +79,14 @@ public class ActionExecutor {
     }
 
     public static void jail(ServerPlayer staff, ServerPlayer target, String jailName, String duration) {
-        if (guard(staff, target)) return;
+        if (isOffline(staff, target) || guard(staff, target)) return;
+        
+        // FIX: No jailear en datos si falla el TP por cárcel inválida
+        if (!JailManager.teleportToJail(target, jailName)) {
+            staff.sendSystemMessage(Component.literal("§c[Staff] Error crítico: No se encontró el spawn de la cárcel."));
+            return;
+        }
+
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
         pd.jailed     = true;
         pd.jailName   = jailName;
@@ -78,7 +95,6 @@ public class ActionExecutor {
         logHistory(staff, "JAIL", target, jailName + " - " + duration);
         DataStore.save();
 
-        JailManager.teleportToJail(target, jailName);
         target.sendSystemMessage(Component.literal(
             "§c[Staff] Has sido enviado a la cárcel §f" + jailName
             + "§c.\n§fDuración: §e" + PlayerData.formatExpiry(pd.jailExpiry)));
@@ -88,6 +104,7 @@ public class ActionExecutor {
     }
 
     public static void unjail(ServerPlayer staff, ServerPlayer target) {
+        if (isOffline(staff, target)) return;
         PlayerData pd = DataStore.get(target.getUUID());
         if (pd == null || !pd.jailed) {
             staff.sendSystemMessage(Component.literal("§c[Staff] Ese jugador no está jaileado."));
@@ -104,7 +121,7 @@ public class ActionExecutor {
     }
 
     public static void ban(ServerPlayer staff, ServerPlayer target, String duration, String reason) {
-        if (guard(staff, target)) return;
+        if (isOffline(staff, target) || guard(staff, target)) return;
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
         pd.banned    = true;
         pd.banExpiry = PlayerData.parseDuration(duration);
@@ -122,6 +139,7 @@ public class ActionExecutor {
     }
 
     public static void unban(ServerPlayer staff, ServerPlayer target) {
+        if (isOffline(staff, target)) return;
         PlayerData pd = DataStore.get(target.getUUID());
         if (pd == null || !pd.banned) {
             staff.sendSystemMessage(Component.literal("§c[Staff] Ese jugador no está baneado."));
@@ -133,7 +151,7 @@ public class ActionExecutor {
     }
 
     public static void freeze(ServerPlayer staff, ServerPlayer target) {
-        if (guard(staff, target)) return;
+        if (isOffline(staff, target) || guard(staff, target)) return;
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
         pd.frozen = !pd.frozen;
         DataStore.save();
@@ -147,6 +165,7 @@ public class ActionExecutor {
     }
 
     public static void spy(ServerPlayer staff, ServerPlayer target) {
+        if (isOffline(staff, target)) return;
         if (PermissionUtil.has(staff, "staffmod.spy.interact")) {
             new SpyGui(staff, target).open();
         } else {
@@ -155,7 +174,7 @@ public class ActionExecutor {
     }
 
     public static void warn(ServerPlayer staff, ServerPlayer target, String reason) {
-        if (guard(staff, target)) return;
+        if (isOffline(staff, target) || guard(staff, target)) return;
         PlayerData pd = DataStore.getOrCreate(target.getUUID(), target.getName().getString());
         pd.warns.add(new PlayerData.WarnEntry(reason, System.currentTimeMillis(), staff.getName().getString()));
         
@@ -170,6 +189,7 @@ public class ActionExecutor {
     }
 
     public static void teleport(ServerPlayer staff, ServerPlayer target) {
+        if (isOffline(staff, target)) return;
         staff.teleportTo(
             (net.minecraft.server.level.ServerLevel) target.level(),
             target.getX(), target.getY(), target.getZ(),
@@ -179,7 +199,7 @@ public class ActionExecutor {
     }
 
     public static void kill(ServerPlayer staff, ServerPlayer target) {
-        if (guard(staff, target)) return;
+        if (isOffline(staff, target) || guard(staff, target)) return;
         target.hurt(target.damageSources().genericKill(), Float.MAX_VALUE);
         staff.sendSystemMessage(Component.literal("§c[Staff] Mataste a " + target.getName().getString()));
         broadcast(staff, "§c[Staff] §f" + staff.getName().getString()

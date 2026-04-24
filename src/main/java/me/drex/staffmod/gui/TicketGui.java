@@ -10,6 +10,7 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class TicketGui extends SimpleGui {
@@ -28,6 +29,10 @@ public class TicketGui extends SimpleGui {
     private void build() {
         List<TicketEntry> tickets = new ArrayList<>(DataStore.getAllTickets());
         
+        // FIX BUG 5: Revertir la lista. Los tickets más nuevos (recientes) van primero.
+        // Esto evita que el límite de 53 oculte para siempre los tickets nuevos.
+        Collections.reverse(tickets);
+        
         if (tickets.isEmpty()) {
             setSlot(22, new GuiElementBuilder(Items.GLASS_BOTTLE)
                 .setName(Component.literal("§aNo hay tickets pendientes."))
@@ -36,7 +41,7 @@ public class TicketGui extends SimpleGui {
 
         int slot = 0;
         for (TicketEntry t : tickets) {
-            if (slot >= 53) break;
+            if (slot >= 53) break; // Ahora el límite descarta los muy viejos, no los nuevos
 
             boolean isOpen = t.status.equals("ABIERTO");
             

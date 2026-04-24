@@ -66,14 +66,21 @@ public class JailManager {
         if (pd == null || !pd.isJailActive()) return;
         JailZone zone = DataStore.getJail(pd.jailName);
         if (zone == null) return;
-        Vec3 pos = player.position();
         
+        // FIX BUG 4: Bloquear evasión por cambios de dimensión (End, Nether)
+        String currentDim = player.level().dimension().location().toString();
+        if (!currentDim.equals(zone.dimension)) {
+            teleportToJail(player, zone.name);
+            player.sendSystemMessage(
+                net.minecraft.network.chat.Component.literal("§c[Staff] Intento de evasión bloqueado. Debes permanecer en tu cárcel."));
+            return;
+        }
+
+        Vec3 pos = player.position();
         if (!zone.contains(pos.x, pos.y, pos.z)) {
-            // FIX BUG 4: En lugar de usar clamp() hacia los bordes, usar el centro (Spawn)
             player.teleportTo(zone.spawnX, zone.spawnY, zone.spawnZ);
             player.sendSystemMessage(
-                net.minecraft.network.chat.Component.literal("§c[Staff] No puedes salir de la cárcel.")
-            );
+                net.minecraft.network.chat.Component.literal("§c[Staff] No puedes salir de la cárcel."));
         }
     }
 }
