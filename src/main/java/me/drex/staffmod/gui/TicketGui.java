@@ -7,6 +7,7 @@ import me.drex.staffmod.config.TicketEntry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.inventory.ClickType; // Nueva importación
 import net.minecraft.world.item.Items;
 
 import java.util.ArrayList;
@@ -46,7 +47,6 @@ public class TicketGui extends SimpleGui {
             GuiElementBuilder builder = new GuiElementBuilder(isOpen ? Items.PAPER : Items.MAP)
                 .setName(Component.literal((isOpen ? "§a§l" : "§e§l") + "Ticket #" + t.id + " - " + t.creatorName));
                 
-            // FIX: Dividir el texto en líneas de 35 caracteres para que no salga de la pantalla
             String msg = t.message;
             int maxLineLength = 35;
             for (int i = 0; i < msg.length(); i += maxLineLength) {
@@ -63,10 +63,11 @@ public class TicketGui extends SimpleGui {
             builder.addLoreLine(Component.literal("§cClick Derecho: §fCerrar ticket"));
 
             builder.setCallback((idx, type, action, gui) -> {
-                if (type.isRight) {
+                // FIX: Uso de ClickType.RIGHT y ClickType.LEFT para compatibilidad con 1.21.1
+                if (type == ClickType.RIGHT) {
                     DataStore.removeTicket(t.id);
                     staff.sendSystemMessage(Component.literal("§a[Tickets] Ticket #" + t.id + " cerrado."));
-                } else if (type.isLeft && isOpen) {
+                } else if (type == ClickType.LEFT && isOpen) {
                     t.status = "TOMADO";
                     t.handledBy = staff.getName().getString();
                     DataStore.save();

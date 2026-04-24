@@ -39,12 +39,14 @@ public class StaffMod implements ModInitializer {
             StaffChatCommand.register(dispatcher);
         });
 
-        // FIX BUG 2: Rechazar a los baneados ANTES de que carguen el mundo y causen lag
-        ServerLoginConnectionEvents.QUERY_START.register((handler, server, sender, synchronizer) -> {
-            UUID uuid = handler.getGameProfile().profile().getId();
-            PlayerData pd = DataStore.get(uuid);
-            if (pd != null && pd.isBanActive()) {
-                handler.disconnect(Component.literal("§cEstás baneado del servidor.\n§fRazón: §e" + pd.banReason + "\n§fExpira: §e" + PlayerData.formatExpiry(pd.banExpiry)));
+        // FIX BUG 2: Corregido para usar el evento LOGIN y mapeos oficiales de 1.21.1
+        ServerLoginConnectionEvents.LOGIN.register((handler, server, sender, synchronizer) -> {
+            if (handler.authenticatedProfile != null) {
+                UUID uuid = handler.authenticatedProfile.id();
+                PlayerData pd = DataStore.get(uuid);
+                if (pd != null && pd.isBanActive()) {
+                    handler.disconnect(Component.literal("§cEstás baneado del servidor.\n§fRazón: §e" + pd.banReason + "\n§fExpira: §e" + PlayerData.formatExpiry(pd.banExpiry)));
+                }
             }
         });
 
