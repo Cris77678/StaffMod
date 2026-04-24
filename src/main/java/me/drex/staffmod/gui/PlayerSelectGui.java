@@ -64,7 +64,7 @@ public class PlayerSelectGui extends SimpleGui {
                     return;
                 }
 
-                if (clickAction == net.minecraft.world.inventory.SlotActionType.QUICK_MOVE) {
+                if (clickAction == net.minecraft.world.inventory.ClickType.QUICK_MOVE) {
                     switch (action) {
                         case MUTE -> ActionExecutor.mute(staff, finalTarget, "5m", "Mute Rápido (5m)");
                         case BAN -> ActionExecutor.ban(staff, finalTarget, "1d", "Ban Rápido (1d)");

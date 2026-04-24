@@ -39,8 +39,8 @@ public class StaffMod implements ModInitializer {
             StaffChatCommand.register(dispatcher);
         });
 
-        // FIX BUG 2: Corregido para usar el evento LOGIN y mapeos oficiales de 1.21.1
-        ServerLoginConnectionEvents.LOGIN.register((handler, server, sender, synchronizer) -> {
+        // FIX BUG 2: Se utiliza QUERY_START para interceptar baneados antes de la carga del mundo
+        ServerLoginConnectionEvents.QUERY_START.register((handler, server, sender, synchronizer) -> {
             if (handler.authenticatedProfile != null) {
                 UUID uuid = handler.authenticatedProfile.id();
                 PlayerData pd = DataStore.get(uuid);
@@ -50,12 +50,12 @@ public class StaffMod implements ModInitializer {
             }
         });
 
-        // FIX BUG 3: Manejo seguro del chat sin romper las firmas de 1.21.1
+        // FIX BUG 3: Manejo seguro del chat para silenciados y canal de staff
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) -> {
             PlayerData pd = DataStore.get(sender.getUUID());
             if (pd != null && pd.isMuteActive()) {
                 sender.sendSystemMessage(Component.literal("§c[Staff] Estás muteado. Expira: §e" + PlayerData.formatExpiry(pd.muteExpiry)));
-                return false; // Cancela de forma segura
+                return false; 
             }
 
             if (DataStore.isStaffChatToggled(sender.getUUID()) && PermissionUtil.has(sender, "staffmod.use")) {
