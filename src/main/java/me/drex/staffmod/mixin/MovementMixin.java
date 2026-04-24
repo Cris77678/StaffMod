@@ -3,7 +3,6 @@ package me.drex.staffmod.mixin;
 import me.drex.staffmod.config.DataStore;
 import me.drex.staffmod.config.PlayerData;
 import me.drex.staffmod.util.JailManager;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.server.level.ServerPlayer;
@@ -18,21 +17,29 @@ public abstract class MovementMixin {
 
     @Shadow public ServerPlayer player;
 
-    @Inject(method = "handleMovePlayer", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "handleMovePlayer", at = @At("HEAD"))
     private void staffmod$handleMovement(ServerboundMovePlayerPacket packet, CallbackInfo ci) {
         PlayerData pd = DataStore.get(player.getUUID());
         if (pd == null) return;
 
-        // Congelado: cancelar movimiento y devolver al jugador a su posición
+        // FIX BUG 4: Evitar tormenta de paquetes y permitir mover la cámara al estar congelado
         if (pd.frozen) {
-            player.connection.teleport(
-                player.getX(), player.getY(), player.getZ(),
-                player.getYRot(), player.getXRot());
-            ci.cancel();
+            if (packet.hasPosition()) {
+                double dx = packet.getX(player.getX()) - player.getX();
+                double dy = packet.getY(player.getY()) - player.getY();
+                double dz = packet.getZ(player.getZ()) - player.getZ();
+                
+                // Solo teletransportar de regreso si se desplazó físicamente más de un hilo
+                if (dx * dx + dy * dy + dz * dz > 0.001) {
+                    player.connection.teleport(
+                        player.getX(), player.getY(), player.getZ(),
+                        packet.getYRot(player.getYRot()), packet.getXRot(player.getXRot())
+                    );
+                }
+            }
             return;
         }
 
-        // Jaileado: comprobar que no salga de la zona
         if (pd.isJailActive()) {
             JailManager.checkJailBounds(player);
         }

@@ -66,12 +66,16 @@ public class PlayerSelectGui extends SimpleGui {
 
                 if (type.isShift) {
                     switch (action) {
-                        case MUTE -> { ActionExecutor.mute(staff, finalTarget, "5m", "Mute Rápido (5m)"); parent.open(); return; }
-                        case BAN -> { ActionExecutor.ban(staff, finalTarget, "1d", "Ban Rápido (1d)"); parent.open(); return; }
-                        case WARN -> { ActionExecutor.warn(staff, finalTarget, "Comportamiento inadecuado"); return; }
-                        case FREEZE -> { ActionExecutor.freeze(staff, finalTarget); return; }
+                        case MUTE -> ActionExecutor.mute(staff, finalTarget, "5m", "Mute Rápido (5m)");
+                        case BAN -> ActionExecutor.ban(staff, finalTarget, "1d", "Ban Rápido (1d)");
+                        case WARN -> ActionExecutor.warn(staff, finalTarget, "Comportamiento inadecuado");
+                        case FREEZE -> ActionExecutor.freeze(staff, finalTarget);
                         default -> {}
                     }
+                    // FIX BUG 5: En lugar de parent.open(), re-instanciamos la GUI para que refleje el cristal rojo/amarillo nuevo
+                    this.close();
+                    new PlayerSelectGui(staff, action, parent).open();
+                    return;
                 }
                 handleAction(finalTarget);
             });
