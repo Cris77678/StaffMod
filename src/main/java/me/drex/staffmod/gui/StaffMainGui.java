@@ -14,94 +14,111 @@ public class StaffMainGui extends SimpleGui {
     private final ServerPlayer staff;
 
     public StaffMainGui(ServerPlayer staff) {
-        super(MenuType.GENERIC_9x2, staff, false);
+        // Ampliamos a 6 filas (9x6) para el dashboard premium
+        super(MenuType.GENERIC_9x6, staff, false);
         this.staff = staff;
-        setTitle(Component.literal("§8⚔ §6Panel de Staff §8⚔"));
+        setTitle(Component.literal("§8❖ §6§lDASHBOARD STAFF §8❖"));
         build();
     }
 
     private void build() {
-        if (PermissionUtil.has(staff, "staffmod.kick"))
-            setSlot(0, new GuiElementBuilder(Items.IRON_BOOTS).setName(Component.literal("§c§lKick")).addLoreLine(Component.literal("§7Expulsar a un jugador del servidor.")).setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.KICK, this).open()).build());
-        else setSlot(0, lockedSlot("Kick", "staffmod.kick"));
+        // Estética Premium: Rellenar todos los huecos con cristal negro
+        for (int i = 0; i < getSize(); i++) {
+            setSlot(i, new GuiElementBuilder(Items.BLACK_STAINED_GLASS_PANE).setName(Component.literal(" ")).build());
+        }
 
-        if (PermissionUtil.has(staff, "staffmod.mute"))
-            setSlot(1, new GuiElementBuilder(Items.STRING).setName(Component.literal("§e§lMute")).addLoreLine(Component.literal("§7Silenciar a un jugador.")).setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.MUTE, this).open()).build());
-        else setSlot(1, lockedSlot("Mute", "staffmod.mute"));
+        // === SECCIÓN 1: ESTADÍSTICAS EN VIVO (Fila 2) ===
+        int onlinePlayers = staff.getServer().getPlayerCount();
+        long openTickets = DataStore.getAllTickets().stream().filter(t -> t.status.equals("ABIERTO")).count();
+        
+        // Cálculo preciso de TPS (Ticks Per Second) para saber el rendimiento del servidor en vivo
+        float[] tickTimes = staff.getServer().getTickTimesNanos();
+        double averageTickTime = 0;
+        for (float time : tickTimes) averageTickTime += time;
+        averageTickTime = (averageTickTime / tickTimes.length) * 1.0E-6D;
+        double tps = Math.min(20.0, 1000.0 / Math.max(averageTickTime, 1.0));
+        String tpsColor = tps > 19 ? "§a" : tps > 15 ? "§e" : "§c";
 
-        if (PermissionUtil.has(staff, "staffmod.jail"))
-            setSlot(2, new GuiElementBuilder(Items.IRON_BARS).setName(Component.literal("§6§lJail")).addLoreLine(Component.literal("§7Enviar a un jugador a la cárcel.")).setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.JAIL, this).open()).build());
-        else setSlot(2, lockedSlot("Jail", "staffmod.jail"));
-
-        if (PermissionUtil.has(staff, "staffmod.ban"))
-            setSlot(3, new GuiElementBuilder(Items.TNT).setName(Component.literal("§4§lBan")).addLoreLine(Component.literal("§7Banear a un jugador.")).setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.BAN, this).open()).build());
-        else setSlot(3, lockedSlot("Ban", "staffmod.ban"));
-
-        if (PermissionUtil.has(staff, "staffmod.freeze"))
-            setSlot(4, new GuiElementBuilder(Items.PACKED_ICE).setName(Component.literal("§b§lFreeze")).addLoreLine(Component.literal("§7Congelar/descongelar a un jugador.")).setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.FREEZE, this).open()).build());
-        else setSlot(4, lockedSlot("Freeze", "staffmod.freeze"));
-
-        if (PermissionUtil.has(staff, "staffmod.spy"))
-            setSlot(5, new GuiElementBuilder(Items.ENDER_EYE).setName(Component.literal("§d§lSpy")).addLoreLine(Component.literal("§7Ver el inventario de un jugador.")).addLoreLine(Component.literal(PermissionUtil.has(staff, "staffmod.spy.interact") ? "§aModo: §fVer + Interactuar" : "§eModo: §fSolo ver")).setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.SPY, this).open()).build());
-        else setSlot(5, lockedSlot("Spy", "staffmod.spy"));
-
-        if (PermissionUtil.has(staff, "staffmod.warn"))
-            setSlot(6, new GuiElementBuilder(Items.PAPER).setName(Component.literal("§a§lWarn")).addLoreLine(Component.literal("§7Advertir a un jugador.")).setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.WARN, this).open()).build());
-        else setSlot(6, lockedSlot("Warn", "staffmod.warn"));
-
-        if (PermissionUtil.has(staff, "staffmod.teleport"))
-            setSlot(7, new GuiElementBuilder(Items.ENDER_PEARL).setName(Component.literal("§3§lTeleport")).addLoreLine(Component.literal("§7Teletransportarte a un jugador.")).setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.TELEPORT, this).open()).build());
-        else setSlot(7, lockedSlot("Teleport", "staffmod.teleport"));
-
-        if (PermissionUtil.has(staff, "staffmod.kill"))
-            setSlot(8, new GuiElementBuilder(Items.SKULL_BANNER_PATTERN).setName(Component.literal("§c§lKill")).addLoreLine(Component.literal("§7Matar a un jugador.")).setCallback((idx, type, action, gui) -> new PlayerSelectGui(staff, StaffAction.KILL, this).open()).build());
-        else setSlot(8, lockedSlot("Kill", "staffmod.kill"));
-
-        boolean isScToggled = DataStore.isStaffChatToggled(staff.getUUID());
-        setSlot(14, new GuiElementBuilder(isScToggled ? Items.YELLOW_DYE : Items.LIGHT_GRAY_DYE)
-            .setName(Component.literal(isScToggled ? "§e§lStaff Chat: FIJO" : "§7§lStaff Chat: NORMAL"))
-            .addLoreLine(Component.literal("§7Click para cambiar."))
-            .addLoreLine(Component.literal("§7Si está FIJO, todo lo que escribas"))
-            .addLoreLine(Component.literal("§7en el chat irá directo al canal privado."))
-            .setCallback((idx, type, clickAction, gui) -> {
-                DataStore.toggleStaffChat(staff.getUUID());
-                this.close();
-                new StaffMainGui(staff).open();
-            })
+        setSlot(12, new GuiElementBuilder(Items.PLAYER_HEAD)
+            .setName(Component.literal("§b§lJugadores Online"))
+            .addLoreLine(Component.literal("§7Total conectados: §f" + onlinePlayers))
             .build());
 
-        setSlot(15, new GuiElementBuilder(Items.MAP)
-            .setName(Component.literal("§e§lTickets de Jugadores"))
-            .addLoreLine(Component.literal("§7Revisa y atiende los reportes."))
-            .addLoreLine(Component.literal("§7Tickets actuales: §f" + DataStore.getAllTickets().size()))
+        setSlot(13, new GuiElementBuilder(Items.CLOCK)
+            .setName(Component.literal("§a§lRendimiento (TPS)"))
+            .addLoreLine(Component.literal("§7TPS Actual: " + tpsColor + String.format("%.2f", tps)))
+            .addLoreLine(Component.literal("§7Carga (MSPT): §f" + String.format("%.2f", averageTickTime) + "ms"))
+            .build());
+
+        setSlot(14, new GuiElementBuilder(Items.PAPER)
+            .setName(Component.literal("§e§lTickets Pendientes"))
+            .addLoreLine(Component.literal("§7Sin asignar: §f" + openTickets))
+            .addLoreLine(Component.literal("§8Click para gestionar"))
             .setCallback((idx, type, action, gui) -> new TicketGui(staff, this).open())
             .build());
 
-        setSlot(16, new GuiElementBuilder(Items.WRITTEN_BOOK)
-            .setName(Component.literal("§6§lAuditoría y Estadísticas"))
+        // === SECCIÓN 2: HERRAMIENTAS DE MODERACIÓN (Fila 4) ===
+        addToolSlot(28, "staffmod.kick", Items.IRON_BOOTS, "§c§lExpulsar", "Kickear a un jugador", StaffAction.KICK);
+        addToolSlot(29, "staffmod.mute", Items.STRING, "§e§lSilenciar", "Mute temporal o permanente", StaffAction.MUTE);
+        addToolSlot(30, "staffmod.jail", Items.IRON_BARS, "§6§lCárcel", "Enviar a prisión", StaffAction.JAIL);
+        addToolSlot(31, "staffmod.ban", Items.TNT, "§4§lBanear", "Bloquear acceso al servidor", StaffAction.BAN);
+        addToolSlot(32, "staffmod.warn", Items.OAK_SIGN, "§a§lAdvertencia", "Enviar un aviso oficial", StaffAction.WARN);
+        addToolSlot(33, "staffmod.freeze", Items.PACKED_ICE, "§b§lCongelar", "Inmovilizar para revisión", StaffAction.FREEZE);
+        addToolSlot(34, "staffmod.spy", Items.ENDER_EYE, "§d§lInvSpy", "Revisar inventario sigilosamente", StaffAction.SPY);
+
+        // === SECCIÓN 3: UTILIDADES DE TURNO (Fila 5) ===
+        boolean isScToggled = DataStore.isStaffChatToggled(staff.getUUID());
+        setSlot(40, new GuiElementBuilder(isScToggled ? Items.YELLOW_DYE : Items.LIGHT_GRAY_DYE)
+            .setName(Component.literal(isScToggled ? "§e§lStaff Chat: FIJO" : "§7§lStaff Chat: NORMAL"))
+            .addLoreLine(Component.literal("§7Click para alternar."))
+            .addLoreLine(Component.literal("§8Todo lo que escribas irá al canal privado."))
+            .setCallback((idx, type, action, gui) -> {
+                DataStore.toggleStaffChat(staff.getUUID());
+                build(); // Recarga los íconos sin tener que cerrar y abrir la GUI
+            }).build());
+
+        boolean isDuty = DataStore.isOnDuty(staff.getUUID());
+        setSlot(41, new GuiElementBuilder(isDuty ? Items.LIME_DYE : Items.GRAY_DYE)
+            .setName(Component.literal(isDuty ? "§a§lModo Staff: ACTIVO" : "§7§lModo Staff: INACTIVO"))
+            .addLoreLine(Component.literal("§7Estado del turno actual."))
+            .addLoreLine(Component.literal("§8Desactívalo para no recibir notificaciones."))
+            .setCallback((idx, type, action, gui) -> {
+                DataStore.toggleDuty(staff.getUUID());
+                build(); // Recarga los íconos dinámicamente
+            }).build());
+
+        // Botón extra: Estadísticas generales del staff
+        setSlot(42, new GuiElementBuilder(Items.WRITTEN_BOOK)
+            .setName(Component.literal("§6§lAuditoría Staff"))
             .addLoreLine(Component.literal("§7Ver el historial de acciones"))
             .addLoreLine(Component.literal("§7y rendimiento del staff."))
             .setCallback((idx, type, action, gui) -> new StaffStatsGui(staff, this).open())
             .build());
 
-        boolean isDuty = DataStore.isOnDuty(staff.getUUID());
-        setSlot(17, new GuiElementBuilder(isDuty ? Items.LIME_DYE : Items.GRAY_DYE)
-            .setName(Component.literal(isDuty ? "§a§lModo Staff: ACTIVO" : "§7§lModo Staff: INACTIVO"))
-            .addLoreLine(Component.literal("§7Click para cambiar estado."))
-            .addLoreLine(Component.literal("§7Si estás inactivo, no recibirás"))
-            .addLoreLine(Component.literal("§7alertas de castigos en el chat."))
-            .setCallback((idx, type, clickAction, gui) -> {
-                DataStore.toggleDuty(staff.getUUID());
-                this.close();
-                new StaffMainGui(staff).open();
-            })
+        // Botón de Cerrar Central (Fila 6)
+        setSlot(49, new GuiElementBuilder(Items.BARRIER)
+            .setName(Component.literal("§c§lCerrar Panel"))
+            .setCallback((idx, type, action, gui) -> this.close())
             .build());
     }
 
-    private eu.pb4.sgui.api.elements.GuiElement lockedSlot(String name, String perm) {
-        return new GuiElementBuilder(Items.BARRIER)
-            .setName(Component.literal("§8§l" + name + " §7(Sin permiso)"))
-            .addLoreLine(Component.literal("§7Necesitas: §c" + perm))
-            .build();
+    /**
+     * Método auxiliar para reducir el código repetitivo al crear botones de herramientas.
+     * Si no tiene permiso, muestra un botón bloqueado gris.
+     */
+    private void addToolSlot(int slot, String perm, net.minecraft.world.item.Item item, String name, String desc, StaffAction action) {
+        if (PermissionUtil.has(staff, perm)) {
+            setSlot(slot, new GuiElementBuilder(item)
+                .setName(Component.literal(name))
+                .addLoreLine(Component.literal("§7" + desc))
+                .setCallback((idx, type, a, gui) -> new PlayerSelectGui(staff, action, this).open())
+                .build());
+        } else {
+            setSlot(slot, new GuiElementBuilder(Items.STRUCTURE_VOID)
+                .setName(Component.literal("§8§m" + net.minecraft.ChatFormatting.stripFormatting(name)))
+                .addLoreLine(Component.literal("§cNo tienes permiso para esto:"))
+                .addLoreLine(Component.literal("§8" + perm))
+                .build());
+        }
     }
 }

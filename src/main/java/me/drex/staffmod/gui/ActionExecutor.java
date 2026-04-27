@@ -166,11 +166,9 @@ public class ActionExecutor {
 
     public static void spy(ServerPlayer staff, ServerPlayer target) {
         if (isOffline(staff, target)) return;
-        if (PermissionUtil.has(staff, "staffmod.spy.interact")) {
-            new SpyGui(staff, target).open();
-        } else {
-            new SpyReadOnlyGui(staff, target).open();
-        }
+        
+        // Abrimos la nueva GUI Avanzada unificada
+        new AdvancedSpyGui(staff, target).open();
     }
 
     public static void warn(ServerPlayer staff, ServerPlayer target, String reason) {
