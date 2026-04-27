@@ -20,6 +20,9 @@ repositories {
     maven("https://oss.sonatype.org/content/repositories/snapshots/")
     maven("https://repo.luckperms.net/snapshots/")
     maven("https://repo.luckperms.net/releases/")
+    
+    // Repositorio oficial para la API de Cobblemon (Fase 5)
+    maven("https://dl.cloudsmith.io/public/cobblemon/maven/maven/")
 }
 
 fun DependencyHandlerScope.includeMod(dep: String) {
@@ -40,6 +43,10 @@ dependencies {
 
     // LuckPerms API (compileOnly — viene del servidor en runtime)
     compileOnly("net.luckperms:api:${project.property("luckperms_version")}")
+
+    // Cobblemon API (compileOnly — viene del servidor en runtime)
+    // NOTA: Ajusta la versión a la que estés usando exactamente en el servidor
+    modCompileOnly("com.cobblemon:mod:1.5.2+1.21.1-fabric")
 }
 
 tasks.processResources {
