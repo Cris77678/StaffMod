@@ -5,9 +5,12 @@ import me.drex.staffmod.command.TicketCommand;
 import me.drex.staffmod.command.StaffChatCommand;
 import me.drex.staffmod.config.DataStore;
 import me.drex.staffmod.config.PlayerData;
-import me.drex.staffmod.core.StaffModAsync; // NUEVO: Importación del motor asíncrono (Fase 1)
+import me.drex.staffmod.core.StaffModAsync; // Fase 1: Hilos asíncronos
 import me.drex.staffmod.gui.ActionExecutor;
 import me.drex.staffmod.util.PermissionUtil;
+import me.drex.staffmod.config.RankManager; // Fase 2: Rangos dinámicos
+import me.drex.staffmod.cache.PlayerCache; // Fase 2: Caché inteligente
+
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -53,12 +56,26 @@ public class StaffMod implements ModInitializer {
             return true;
         });
 
-        ServerLifecycleEvents.SERVER_STARTED.register(server -> SERVER = server);
+        // NUEVO: Fase 2 - Inicialización de LuckPerms y Rangos Dinámicos
+        ServerLifecycleEvents.SERVER_STARTING.register(server -> {
+            SERVER = server;
+            LOGGER.info("[StaffMod] Servidor iniciando. Conectando LuckPerms y Rangos...");
+            
+            // Hook de permisos obligatorio
+            PermissionUtil.init();
+            
+            // Carga de rangos dinámicos
+            RankManager.loadRanks();
+        });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             LOGGER.info("[StaffMod] Servidor deteniéndose. Guardando datos y cerrando hilos asíncronos...");
             DataStore.save();
-            // NUEVO: Apagado seguro de los hilos asíncronos para evitar memory leaks (Fase 1)
+            
+            // NUEVO: Fase 2 - Aseguramos que la RAM de jugadores se vuelque a disco antes de cerrar
+            PlayerCache.saveAll();
+            
+            // Apagado seguro de los hilos asíncronos para evitar memory leaks (Fase 1)
             StaffModAsync.shutdown();
         });
 
