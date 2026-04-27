@@ -3,9 +3,10 @@
   "package": "me.drex.staffmod.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "ChatMixin",
+"ChatMixin",
     "CommandMixin",
-    "MovementMixin"
+    "MovementMixin",
+    "CreativeSecurityMixin"
   ],
   "injectors": {
     "defaultRequire": 1

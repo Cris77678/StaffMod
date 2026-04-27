@@ -3,6 +3,7 @@ package me.drex.staffmod.gui;
 import eu.pb4.sgui.api.elements.GuiElementBuilder;
 import eu.pb4.sgui.api.gui.SimpleGui;
 import me.drex.staffmod.config.DataStore;
+import me.drex.staffmod.features.BuilderManager;
 import me.drex.staffmod.util.PermissionUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -58,16 +59,20 @@ public class StaffMainGui extends SimpleGui {
             .build());
 
         // === SECCIÓN 2: HERRAMIENTAS DE MODERACIÓN (Fila 4) ===
-        addToolSlot(28, "staffmod.kick", Items.IRON_BOOTS, "§c§lExpulsar", "Kickear a un jugador", StaffAction.KICK);
-        addToolSlot(29, "staffmod.mute", Items.STRING, "§e§lSilenciar", "Mute temporal o permanente", StaffAction.MUTE);
-        addToolSlot(30, "staffmod.jail", Items.IRON_BARS, "§6§lCárcel", "Enviar a prisión", StaffAction.JAIL);
-        addToolSlot(31, "staffmod.ban", Items.TNT, "§4§lBanear", "Bloquear acceso al servidor", StaffAction.BAN);
-        addToolSlot(32, "staffmod.warn", Items.OAK_SIGN, "§a§lAdvertencia", "Enviar un aviso oficial", StaffAction.WARN);
-        addToolSlot(33, "staffmod.freeze", Items.PACKED_ICE, "§b§lCongelar", "Inmovilizar para revisión", StaffAction.FREEZE);
-        addToolSlot(34, "staffmod.spy", Items.ENDER_EYE, "§d§lInvSpy", "Revisar inventario sigilosamente", StaffAction.SPY);
+        addToolSlot(27, "staffmod.kick", Items.IRON_BOOTS, "§c§lExpulsar", "Kickear a un jugador", StaffAction.KICK);
+        addToolSlot(28, "staffmod.mute", Items.STRING, "§e§lSilenciar", "Mute temporal o permanente", StaffAction.MUTE);
+        addToolSlot(29, "staffmod.jail", Items.IRON_BARS, "§6§lCárcel", "Enviar a prisión", StaffAction.JAIL);
+        addToolSlot(30, "staffmod.ban", Items.TNT, "§4§lBanear", "Bloquear acceso al servidor", StaffAction.BAN);
+        addToolSlot(31, "staffmod.warn", Items.OAK_SIGN, "§a§lAdvertencia", "Enviar un aviso oficial", StaffAction.WARN);
+        addToolSlot(32, "staffmod.freeze", Items.PACKED_ICE, "§b§lCongelar", "Inmovilizar para revisión", StaffAction.FREEZE);
+        addToolSlot(33, "staffmod.spy", Items.ENDER_EYE, "§d§lInvSpy", "Revisar inventario sigilosamente", StaffAction.SPY);
         
-        // NUEVO - Fase 5: Herramienta de Inspección de Cobblemon
-        addToolSlot(35, "staffmod.spy", Items.DRAGON_EGG, "§d§lPokeSpy", "Revisar equipo Pokémon (IVs/EVs)", StaffAction.POKESPY);
+        // Restaurados: Teleport y Kill
+        addToolSlot(34, "staffmod.teleport", Items.ENDER_PEARL, "§3§lTeleport", "Teletransportarte a un jugador", StaffAction.TELEPORT);
+        addToolSlot(35, "staffmod.kill", Items.SKELETON_SKULL, "§c§lKill", "Matar a un jugador", StaffAction.KILL);
+
+        // Fase 5: Herramienta de Inspección de Cobblemon (PokeSpy)
+        addToolSlot(36, "staffmod.spy", Items.DRAGON_EGG, "§d§lPokeSpy", "Revisar equipo Pokémon (IVs/EVs)", StaffAction.POKESPY);
 
         // === SECCIÓN 3: UTILIDADES DE TURNO (Fila 5) ===
         boolean isScToggled = DataStore.isStaffChatToggled(staff.getUUID());
@@ -96,6 +101,29 @@ public class StaffMainGui extends SimpleGui {
             .addLoreLine(Component.literal("§7Ver el historial de acciones"))
             .addLoreLine(Component.literal("§7y rendimiento del staff."))
             .setCallback((idx, type, action, gui) -> new StaffStatsGui(staff, this).open())
+            .build());
+
+        // Fase 6: Botón de Modo Builder Restringido
+        boolean isBuilder = BuilderManager.isBuilderMode(staff.getUUID());
+        setSlot(43, new GuiElementBuilder(isBuilder ? Items.BRICKS : Items.BRICK)
+            .setName(Component.literal(isBuilder ? "§a§lModo Builder: ACTIVO" : "§7§lModo Builder: INACTIVO"))
+            .addLoreLine(Component.literal("§7Aísla tu inventario y otorga"))
+            .addLoreLine(Component.literal("§7creativo seguro sin bloques ilegales."))
+            .setCallback((idx, type, action, gui) -> {
+                if (PermissionUtil.has(staff, "staffmod.builder")) {
+                    BuilderManager.toggleBuilderMode(staff);
+                    build();
+                } else {
+                    staff.sendSystemMessage(Component.literal("§cNo tienes permiso para usar el Modo Builder."));
+                }
+            }).build());
+
+        // NUEVO - Fase 6: Botón de Kits Internos
+        setSlot(44, new GuiElementBuilder(Items.CHEST)
+            .setName(Component.literal("§e§lKits de Staff"))
+            .addLoreLine(Component.literal("§7Reclama tus kits de herramientas"))
+            .addLoreLine(Component.literal("§7según tu rango de administración."))
+            .setCallback((idx, type, action, gui) -> new KitListGui(staff, this).open())
             .build());
 
         // Botón de Cerrar Central (Fila 6)
