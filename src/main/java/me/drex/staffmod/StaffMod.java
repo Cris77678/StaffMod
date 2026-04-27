@@ -15,6 +15,7 @@ import me.drex.staffmod.features.AntiSpamFilter; // Fase 4: Filtro de Spam
 import me.drex.staffmod.punishment.ExpirationTask; // Fase 4: Limpieza asíncrona de castigos
 import me.drex.staffmod.features.CobblemonAlerts; // Fase 5: Alertas de Cobblemon
 import me.drex.staffmod.features.KitManager; // Fase 6: Sistema de Kits
+import me.drex.staffmod.features.StaffConnectionHandler; // Fase 7: Conexión y Notificaciones de Staff
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -46,8 +47,6 @@ public class StaffMod implements ModInitializer {
             StaffCommand.register(dispatcher);
             TicketCommand.register(dispatcher);
             StaffChatCommand.register(dispatcher);
-            
-            // NUEVO: Comando administrador de Kits (Fase 6)
             KitCommand.register(dispatcher);
         });
 
@@ -88,7 +87,7 @@ public class StaffMod implements ModInitializer {
             // Carga de rangos dinámicos
             RankManager.loadRanks();
 
-            // NUEVO: Carga del módulo de Kits (Fase 6)
+            // Carga del módulo de Kits (Fase 6)
             KitManager.load();
 
             // Programamos la Tarea Asíncrona de Expiración (revisa castigos cada 10 segundos)
@@ -112,7 +111,7 @@ public class StaffMod implements ModInitializer {
             // Aseguramos que la RAM de jugadores se vuelque a disco antes de cerrar
             PlayerCache.saveAll();
 
-            // NUEVO: Guardado seguro de kits y cooldowns (Fase 6)
+            // Guardado seguro de kits y cooldowns (Fase 6)
             KitManager.saveAllAsync();
             
             // Apagado seguro de los hilos asíncronos para evitar memory leaks (Fase 1)
@@ -133,6 +132,9 @@ public class StaffMod implements ModInitializer {
                 return;
             }
             DataStore.applyOnJoin(handler.player);
+
+            // NUEVO: Fase 7 - Lógica de Notificaciones de Turno Staff
+            StaffConnectionHandler.onStaffJoin(handler.player);
         });
 
         LOGGER.info("[StaffMod] Listo y operando.");
