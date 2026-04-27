@@ -5,6 +5,7 @@ import me.drex.staffmod.command.TicketCommand;
 import me.drex.staffmod.command.StaffChatCommand;
 import me.drex.staffmod.config.DataStore;
 import me.drex.staffmod.config.PlayerData;
+import me.drex.staffmod.core.StaffModAsync; // NUEVO: Importación del motor asíncrono (Fase 1)
 import me.drex.staffmod.gui.ActionExecutor;
 import me.drex.staffmod.util.PermissionUtil;
 import net.fabricmc.api.ModInitializer;
@@ -26,8 +27,9 @@ public class StaffMod implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        LOGGER.info("[StaffMod] Iniciando...");
+        LOGGER.info("[StaffMod] Iniciando núcleo de rendimiento premium...");
 
+        // Carga inicial del DataStore actual
         DataStore.load();
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -51,8 +53,14 @@ public class StaffMod implements ModInitializer {
             return true;
         });
 
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> DataStore.save());
         ServerLifecycleEvents.SERVER_STARTED.register(server -> SERVER = server);
+
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            LOGGER.info("[StaffMod] Servidor deteniéndose. Guardando datos y cerrando hilos asíncronos...");
+            DataStore.save();
+            // NUEVO: Apagado seguro de los hilos asíncronos para evitar memory leaks (Fase 1)
+            StaffModAsync.shutdown();
+        });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             DataStore.tickExpirations(server);
