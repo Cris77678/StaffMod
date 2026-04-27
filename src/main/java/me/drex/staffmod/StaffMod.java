@@ -12,6 +12,7 @@ import me.drex.staffmod.config.RankManager; // Fase 2: Rangos dinámicos
 import me.drex.staffmod.cache.PlayerCache; // Fase 2: Caché inteligente
 import me.drex.staffmod.features.AntiSpamFilter; // Fase 4: Filtro de Spam
 import me.drex.staffmod.punishment.ExpirationTask; // Fase 4: Limpieza asíncrona de castigos
+import me.drex.staffmod.features.CobblemonAlerts; // Fase 5: Alertas de Cobblemon
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -45,7 +46,7 @@ public class StaffMod implements ModInitializer {
             StaffChatCommand.register(dispatcher);
         });
 
-        // NUEVO: Evento de chat optimizado con Anti-Spam y uso de caché (Fase 4)
+        // Evento de chat optimizado con Anti-Spam y uso de caché (Fase 4)
         ServerMessageEvents.ALLOW_CHAT_MESSAGE.register((message, sender, params) -> {
             
             // 1. Verificación rápida de Mute desde la Caché Inteligente o DataStore
@@ -71,10 +72,10 @@ public class StaffMod implements ModInitializer {
             return true;
         });
 
-        // Fase 2 y 4 - Inicialización de LuckPerms, Rangos y Tareas Asíncronas
+        // Fase 2, 4 y 5 - Inicialización de LuckPerms, Rangos, Tareas Asíncronas y Cobblemon
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SERVER = server;
-            LOGGER.info("[StaffMod] Servidor iniciando. Conectando LuckPerms y Rangos...");
+            LOGGER.info("[StaffMod] Servidor iniciando. Conectando LuckPerms, Rangos y Módulos...");
             
             // Hook de permisos obligatorio
             PermissionUtil.init();
@@ -87,6 +88,13 @@ public class StaffMod implements ModInitializer {
                 new ExpirationTask(server), 
                 10, 10, TimeUnit.SECONDS
             );
+
+            // NUEVO: Fase 5 - Registrar Eventos de Cobblemon
+            try {
+                CobblemonAlerts.registerEvents();
+            } catch (NoClassDefFoundError e) {
+                LOGGER.warn("[StaffMod] API de Cobblemon no detectada. El módulo de alertas Pokémon ha sido desactivado de forma segura.");
+            }
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
@@ -101,7 +109,7 @@ public class StaffMod implements ModInitializer {
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            // ELIMINADO: DataStore.tickExpirations(server); ya no consume TPS del servidor.
+            // Ya no consume TPS del servidor revisando castigos.
             // Ahora lo maneja ExpirationTask de manera asíncrona.
             DataStore.tickAnnouncements(server);
         });
@@ -116,6 +124,6 @@ public class StaffMod implements ModInitializer {
             DataStore.applyOnJoin(handler.player);
         });
 
-        LOGGER.info("[StaffMod] Listo.");
+        LOGGER.info("[StaffMod] Listo y operando.");
     }
 }

@@ -65,6 +65,9 @@ public class StaffMainGui extends SimpleGui {
         addToolSlot(32, "staffmod.warn", Items.OAK_SIGN, "§a§lAdvertencia", "Enviar un aviso oficial", StaffAction.WARN);
         addToolSlot(33, "staffmod.freeze", Items.PACKED_ICE, "§b§lCongelar", "Inmovilizar para revisión", StaffAction.FREEZE);
         addToolSlot(34, "staffmod.spy", Items.ENDER_EYE, "§d§lInvSpy", "Revisar inventario sigilosamente", StaffAction.SPY);
+        
+        // NUEVO - Fase 5: Herramienta de Inspección de Cobblemon
+        addToolSlot(35, "staffmod.spy", Items.DRAGON_EGG, "§d§lPokeSpy", "Revisar equipo Pokémon (IVs/EVs)", StaffAction.POKESPY);
 
         // === SECCIÓN 3: UTILIDADES DE TURNO (Fila 5) ===
         boolean isScToggled = DataStore.isStaffChatToggled(staff.getUUID());
