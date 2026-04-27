@@ -34,6 +34,10 @@ dependencies {
 
     includeMod("eu.pb4:sgui:${project.property("sgui_version")}")
 
+    // Caffeine para caché inteligente (alta concurrencia y expiración automática)
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+    include("com.github.ben-manes.caffeine:caffeine:3.1.8")
+
     // LuckPerms API (compileOnly — viene del servidor en runtime)
     compileOnly("net.luckperms:api:${project.property("luckperms_version")}")
 }
