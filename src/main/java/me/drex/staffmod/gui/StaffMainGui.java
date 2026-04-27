@@ -118,13 +118,22 @@ public class StaffMainGui extends SimpleGui {
                 }
             }).build());
 
-        // NUEVO - Fase 6: Botón de Kits Internos
+        // Fase 6: Botón de Kits Internos
         setSlot(44, new GuiElementBuilder(Items.CHEST)
             .setName(Component.literal("§e§lKits de Staff"))
             .addLoreLine(Component.literal("§7Reclama tus kits de herramientas"))
             .addLoreLine(Component.literal("§7según tu rango de administración."))
             .setCallback((idx, type, action, gui) -> new KitListGui(staff, this).open())
             .build());
+
+        // NUEVO - Fase 8: Botón secreto para Desarrolladores
+        if (PermissionUtil.has(staff, "staffmod.developer")) {
+            setSlot(45, new GuiElementBuilder(Items.COMMAND_BLOCK)
+                .setName(Component.literal("§d§lPanel de Desarrollador"))
+                .addLoreLine(Component.literal("§7Herramientas técnicas de PokeLand."))
+                .setCallback((idx, type, action, gui) -> new DevPanelGui(staff).open())
+                .build());
+        }
 
         // Botón de Cerrar Central (Fila 6)
         setSlot(49, new GuiElementBuilder(Items.BARRIER)

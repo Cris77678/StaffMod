@@ -16,6 +16,7 @@ import me.drex.staffmod.punishment.ExpirationTask; // Fase 4: Limpieza asíncron
 import me.drex.staffmod.features.CobblemonAlerts; // Fase 5: Alertas de Cobblemon
 import me.drex.staffmod.features.KitManager; // Fase 6: Sistema de Kits
 import me.drex.staffmod.features.StaffConnectionHandler; // Fase 7: Conexión y Notificaciones de Staff
+import me.drex.staffmod.logging.AuditLogManager; // Fase 8: Sistema de Auditoría
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -76,7 +77,7 @@ public class StaffMod implements ModInitializer {
             return true;
         });
 
-        // Fase 2, 4, 5 y 6 - Inicialización de LuckPerms, Rangos, Tareas Asíncronas, Cobblemon y Kits
+        // Inicialización general de todos los módulos
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             SERVER = server;
             LOGGER.info("[StaffMod] Servidor iniciando. Conectando LuckPerms, Rangos y Módulos...");
@@ -84,10 +85,8 @@ public class StaffMod implements ModInitializer {
             // Hook de permisos obligatorio
             PermissionUtil.init();
             
-            // Carga de rangos dinámicos
+            // Carga de módulos premium
             RankManager.loadRanks();
-
-            // Carga del módulo de Kits (Fase 6)
             KitManager.load();
 
             // Programamos la Tarea Asíncrona de Expiración (revisa castigos cada 10 segundos)
@@ -96,7 +95,7 @@ public class StaffMod implements ModInitializer {
                 10, 10, TimeUnit.SECONDS
             );
 
-            // Fase 5 - Registrar Eventos de Cobblemon
+            // Registrar Eventos de Cobblemon (Fase 5)
             try {
                 CobblemonAlerts.registerEvents();
             } catch (NoClassDefFoundError e) {
@@ -106,21 +105,23 @@ public class StaffMod implements ModInitializer {
 
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             LOGGER.info("[StaffMod] Servidor deteniéndose. Guardando datos y cerrando hilos asíncronos...");
-            DataStore.save();
             
-            // Aseguramos que la RAM de jugadores se vuelque a disco antes de cerrar
+            // Guardados síncronos y de caché
+            DataStore.save();
             PlayerCache.saveAll();
 
-            // Guardado seguro de kits y cooldowns (Fase 6)
+            // Guardados asíncronos de archivos JSON
             KitManager.saveAllAsync();
+            
+            // NUEVO: Guardado final de auditoría antes de cerrar (Fase 8)
+            AuditLogManager.save();
             
             // Apagado seguro de los hilos asíncronos para evitar memory leaks (Fase 1)
             StaffModAsync.shutdown();
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            // Ya no consume TPS del servidor revisando castigos.
-            // Ahora lo maneja ExpirationTask de manera asíncrona.
+            // Maneja los anuncios automáticos
             DataStore.tickAnnouncements(server);
         });
 
@@ -133,10 +134,10 @@ public class StaffMod implements ModInitializer {
             }
             DataStore.applyOnJoin(handler.player);
 
-            // NUEVO: Fase 7 - Lógica de Notificaciones de Turno Staff
+            // Lógica de Notificaciones de Turno Staff (Fase 7)
             StaffConnectionHandler.onStaffJoin(handler.player);
         });
 
-        LOGGER.info("[StaffMod] Listo y operando.");
+        LOGGER.info("[StaffMod] Listo y operando con todos los módulos activos.");
     }
 }
